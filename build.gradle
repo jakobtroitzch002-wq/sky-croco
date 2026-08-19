@@ -1,6 +1,17 @@
-plugins {
-    id "net.fabricmc.fabric-loom" version "1.8"
+buildscript {
+    repositories {
+        maven {
+            name = "Fabric"
+            url = "https://maven.fabricmc.net/"
+        }
+        mavenCentral()
+    }
+    dependencies {
+        classpath "net.fabricmc:fabric-loom:1.9-SNAPSHOT"
+    }
 }
+
+apply plugin: "net.fabricmc.fabric-loom"
 
 version = project.mod_version
 group = project.maven_group
@@ -11,7 +22,6 @@ base {
 
 repositories {
     mavenCentral()
-
     maven {
         name = "Fabric"
         url = "https://maven.fabricmc.net/"
@@ -26,10 +36,10 @@ dependencies {
     mappings loom.officialMojangMappings()
 
     // Fabric Loader
-    implementation "net.fabricmc:fabric-loader:${loader_version}"
+    modImplementation "net.fabricmc:fabric-loader:${loader_version}"
 
     // Fabric API
-    implementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
 }
 
 processResources {
@@ -50,10 +60,4 @@ java {
 tasks.withType(JavaCompile).configureEach {
     options.release = 25
     options.encoding = "UTF-8"
-}
-
-tasks.jar {
-    from("LICENSE") {
-        rename { "${it}_${project.archives_base_name}" }
-    }
 }
