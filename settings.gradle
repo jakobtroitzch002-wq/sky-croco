@@ -9,4 +9,8 @@ pluginManagement {
     }
 }
 
+plugins {
+    id 'net.fabricmc.loom' version '1.11.3' apply false
+}
+
 rootProject.name = "crocodilandy-sky"
