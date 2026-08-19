@@ -7,7 +7,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath "net.fabricmc:fabric-loom:1.17"
+        classpath "net.fabricmc:fabric-loom:1.9-SNAPSHOT"
     }
 }
 
