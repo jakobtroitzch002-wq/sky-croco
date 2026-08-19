@@ -13,11 +13,11 @@ jobs:
       - name: Projekt herunterladen
         uses: actions/checkout@v6
 
-      - name: Java 25 installieren
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "25"
+          java-version: "21"
 
       - name: Gradle vorbereiten
         uses: gradle/actions/setup-gradle@v4
