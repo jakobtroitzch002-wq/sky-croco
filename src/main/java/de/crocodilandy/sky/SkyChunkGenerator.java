@@ -102,7 +102,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                         chunk.setBlockState(
                                 new BlockPos(worldX, y, worldZ),
                                 state,
-                                false
+                                0
                         );
                     }
                 }
