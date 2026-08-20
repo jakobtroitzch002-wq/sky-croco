@@ -1,14 +1,13 @@
 package de.crocodilandy.sky;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public final class SkyWorldgen {
 
-    public static final ResourceLocation SKY_GENERATOR_ID =
-            ResourceLocation.fromNamespaceAndPath(
+    public static final Identifier SKY_GENERATOR_ID =
+            Identifier.fromNamespaceAndPath(
                     "crocodilandy_sky",
                     "sky"
             );
