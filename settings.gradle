@@ -4,13 +4,10 @@ pluginManagement {
             name = "Fabric"
             url = "https://maven.fabricmc.net/"
         }
-        gradlePluginPortal()
-        mavenCentral()
-    }
-}
 
-plugins {
-    id 'fabric-loom' version '1.17.11' apply false
+        mavenCentral()
+        gradlePluginPortal()
+    }
 }
 
 rootProject.name = "crocodilandy-sky"
