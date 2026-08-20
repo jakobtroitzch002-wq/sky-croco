@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom' version '1.17.11'
+    id 'net.fabricmc.fabric-loom' version "${loom_version}"
 }
 
 version = project.mod_version
@@ -10,31 +10,25 @@ base {
 }
 
 repositories {
-    mavenCentral()
-    maven {
-        name = "Fabric"
-        url = "https://maven.fabricmc.net/"
-    }
+    // Loom fügt die benötigten Minecraft-
+    // und Fabric-Repositories automatisch hinzu.
 }
 
 dependencies {
-    // Minecraft 26.2
     minecraft "com.mojang:minecraft:${minecraft_version}"
 
-    // Fabric Loader
     implementation "net.fabricmc:fabric-loader:${loader_version}"
 
-    // Fabric API
     implementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
 }
 
 processResources {
-    inputs.property "version", project.version
+    def version = project.version
+
+    inputs.property "version", version
 
     filesMatching("fabric.mod.json") {
-        expand(
-            "version": project.version
-        )
+        expand "version": version
     }
 }
 
@@ -44,8 +38,8 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 java {
+    withSourcesJar()
+
     sourceCompatibility = JavaVersion.VERSION_25
     targetCompatibility = JavaVersion.VERSION_25
-
-    withSourcesJar()
 }
