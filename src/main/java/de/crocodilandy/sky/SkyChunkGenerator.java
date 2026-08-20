@@ -3,12 +3,11 @@ package de.crocodilandy.sky;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Holder;
-import net.minecraft.resources.RegistryOps;
-import net.minecraft.util.Mth;
-import net.minecraft.util.RandomSource;
+import net.minecraft.server.level.WorldGenRegion;
+import net.minecraft.world.level.LevelHeightAccessor;
+import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.StructureManager;
-import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.BiomeManager;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -16,11 +15,7 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Blender;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.level.levelgen.NoiseColumn;
 import net.minecraft.world.level.levelgen.RandomState;
-import net.minecraft.server.level.WorldGenRegion;
-import net.minecraft.world.level.biome.BiomeManager;
-import net.minecraft.world.level.levelgen.structure.StructureManager;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -36,7 +31,6 @@ public final class SkyChunkGenerator extends ChunkGenerator {
             );
 
     private static final int SURFACE_Y = 100;
-    private static final int BOTTOM_Y = 45;
     private static final int WORLD_MIN_Y = -64;
 
     public SkyChunkGenerator(BiomeSource biomeSource) {
@@ -55,10 +49,9 @@ public final class SkyChunkGenerator extends ChunkGenerator {
             StructureManager structureManager,
             ChunkAccess chunk
     ) {
-        int chunkX = chunk.getPos().x;
-        int chunkZ = chunk.getPos().z;
+        int chunkX = chunk.getPos().x();
+        int chunkZ = chunk.getPos().z();
 
-        // Der deterministische Seed wird aus den Chunk-Koordinaten abgeleitet.
         long seed = mixSeed(chunkX, chunkZ);
 
         for (int localX = 0; localX < 16; localX++) {
@@ -73,23 +66,21 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                     continue;
                 }
 
-                int surfaceY = island.surfaceY;
-                int bottomY = island.bottomY;
-
-                for (int y = bottomY; y <= surfaceY; y++) {
-                    double depth = (double) (surfaceY - y) / Math.max(1, surfaceY - bottomY);
+                for (int y = island.bottomY; y <= island.surfaceY; y++) {
+                    double depth =
+                            (double) (island.surfaceY - y)
+                                    / Math.max(1, island.surfaceY - island.bottomY);
 
                     double widthFactor = 1.0 - depth;
 
-                    // Insel wird nach unten schmaler.
-                    double radius = island.radius * (0.18 + widthFactor * 0.82);
+                    double radius =
+                            island.radius * (0.18 + widthFactor * 0.82);
 
                     double dx = worldX - island.x;
                     double dz = worldZ - island.z;
 
                     double distance = Math.sqrt(dx * dx + dz * dz);
 
-                    // Kleine asymmetrische Verformung.
                     double distortion =
                             Math.sin(worldX * 0.085 + island.noiseOffset) * 1.8
                                     + Math.cos(worldZ * 0.071 - island.noiseOffset) * 1.8
@@ -100,9 +91,9 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                     if (distance <= effectiveRadius) {
                         BlockState state;
 
-                        if (y >= surfaceY - 1) {
+                        if (y >= island.surfaceY - 1) {
                             state = Blocks.GRASS_BLOCK.defaultBlockState();
-                        } else if (y >= surfaceY - 4) {
+                        } else if (y >= island.surfaceY - 4) {
                             state = Blocks.DIRT.defaultBlockState();
                         } else {
                             state = Blocks.STONE.defaultBlockState();
@@ -122,12 +113,6 @@ public final class SkyChunkGenerator extends ChunkGenerator {
     }
 
     private Island findIsland(int x, int z, long seed) {
-
-        /*
-         * Wir arbeiten mit einem groben Zellraster, aber verschieben
-         * die Zentren zufällig. Dadurch entstehen keine perfekten
-         * sichtbaren Rasterinseln.
-         */
         int cellSize = 160;
 
         int cellX = Math.floorDiv(x, cellSize);
@@ -142,13 +127,12 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                 int gx = cellX + ox;
                 int gz = cellZ + oz;
 
-                long randomSeed = mixSeed(gx * 73428767L, gz * 912931L) ^ seed;
-                RandomSource random = RandomSource.create(randomSeed);
+                long randomSeed =
+                        mixSeed(gx * 73428767L, gz * 912931L) ^ seed;
 
-                /*
-                 * Nur ein Teil der Zellen bekommt überhaupt eine Insel.
-                 * Das erzeugt große Void-Bereiche.
-                 */
+                net.minecraft.util.RandomSource random =
+                        net.minecraft.util.RandomSource.create(randomSeed);
+
                 if (random.nextFloat() > 0.28f) {
                     continue;
                 }
@@ -173,14 +157,11 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                 double radius = 10.0 + random.nextDouble() * 40.0;
 
                 if (distance <= radius + 10.0 && distance < bestDistance) {
-
                     int surfaceY =
-                            SURFACE_Y
-                                    + random.nextInt(-8, 9);
+                            SURFACE_Y + random.nextInt(-8, 9);
 
                     int bottomY =
-                            45
-                                    + random.nextInt(-3, 8);
+                            45 + random.nextInt(-3, 8);
 
                     double offset = random.nextDouble() * 10000.0;
 
@@ -203,11 +184,16 @@ public final class SkyChunkGenerator extends ChunkGenerator {
 
     private static long mixSeed(long a, long b) {
         long value = a * 0x9E3779B97F4A7C15L;
-        value ^= Long.rotateLeft(b * 0xC2B2AE3D27D4EB4FL, 27);
+        value ^= Long.rotateLeft(
+                b * 0xC2B2AE3D27D4EB4FL,
+                27
+        );
+
         value *= 0x165667B19E3779F9L;
         value ^= value >>> 29;
         value *= 0x85EBCA77C2B2AE63L;
         value ^= value >>> 32;
+
         return value;
     }
 
@@ -220,8 +206,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
             StructureManager structureManager,
             ChunkAccess chunk
     ) {
-        // Absichtlich leer:
-        // keine Höhlen und kein normales Overworld-Terrain.
+        // Keine normalen Overworld-Carver.
     }
 
     @Override
@@ -231,12 +216,12 @@ public final class SkyChunkGenerator extends ChunkGenerator {
             RandomState randomState,
             ChunkAccess protoChunk
     ) {
-        // Die Oberfläche wird bereits in fillFromNoise gesetzt.
+        // Oberfläche wird in fillFromNoise erzeugt.
     }
 
     @Override
     public void spawnOriginalMobs(WorldGenRegion worldGenRegion) {
-        // Später können wir hier Vanilla-Mobspawns aktivieren.
+        // Später.
     }
 
     @Override
@@ -251,7 +236,6 @@ public final class SkyChunkGenerator extends ChunkGenerator {
 
     @Override
     public int getSeaLevel() {
-        // Wir möchten keine normale Wasserwelt.
         return 0;
     }
 
@@ -260,19 +244,21 @@ public final class SkyChunkGenerator extends ChunkGenerator {
             int x,
             int z,
             Heightmap.Types type,
-            net.minecraft.world.level.LevelHeightAccessor heightAccessor,
+            LevelHeightAccessor heightAccessor,
             RandomState randomState
     ) {
         Island island = findIsland(x, z, 0L);
 
-        return island == null ? WORLD_MIN_Y : island.surfaceY + 1;
+        return island == null
+                ? WORLD_MIN_Y
+                : island.surfaceY + 1;
     }
 
     @Override
     public NoiseColumn getBaseColumn(
             int x,
             int z,
-            net.minecraft.world.level.LevelHeightAccessor heightAccessor,
+            LevelHeightAccessor heightAccessor,
             RandomState randomState
     ) {
         BlockState[] states =
@@ -285,7 +271,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         Island island = findIsland(x, z, 0L);
 
         if (island != null) {
-            int minY = heightAccessor.getMinBuildHeight();
+            int minY = heightAccessor.getMinY();
 
             for (int y = island.bottomY; y <= island.surfaceY; y++) {
                 int index = y - minY;
@@ -295,17 +281,20 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                 }
 
                 if (y >= island.surfaceY - 1) {
-                    states[index] = Blocks.GRASS_BLOCK.defaultBlockState();
+                    states[index] =
+                            Blocks.GRASS_BLOCK.defaultBlockState();
                 } else if (y >= island.surfaceY - 4) {
-                    states[index] = Blocks.DIRT.defaultBlockState();
+                    states[index] =
+                            Blocks.DIRT.defaultBlockState();
                 } else {
-                    states[index] = Blocks.STONE.defaultBlockState();
+                    states[index] =
+                            Blocks.STONE.defaultBlockState();
                 }
             }
         }
 
         return new NoiseColumn(
-                heightAccessor.getMinBuildHeight(),
+                heightAccessor.getMinY(),
                 states
         );
     }
