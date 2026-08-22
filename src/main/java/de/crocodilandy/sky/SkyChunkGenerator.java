@@ -916,11 +916,11 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                 );
 
         if (layer <= 1) {
-            return Blocks.RED_TERRACOTTA.defaultBlockState();
+            return Blocks.TERRACOTTA.defaultBlockState();
         }
 
         if (layer <= 3) {
-            return Blocks.ORANGE_TERRACOTTA.defaultBlockState();
+            return Blocks.RED_SAND.defaultBlockState();
         }
 
         if (layer <= 5) {
@@ -928,27 +928,27 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         }
 
         if (layer <= 7) {
-            return Blocks.YELLOW_TERRACOTTA.defaultBlockState();
+            return Blocks.TERRACOTTA.defaultBlockState();
         }
 
         if (layer <= 9) {
-            return Blocks.WHITE_TERRACOTTA.defaultBlockState();
+            return Blocks.TERRACOTTA.defaultBlockState();
         }
 
         if (layer <= 11) {
-            return Blocks.LIGHT_GRAY_TERRACOTTA.defaultBlockState();
+            return Blocks.TERRACOTTA.defaultBlockState();
         }
 
         if (layer <= 13) {
-            return Blocks.BROWN_TERRACOTTA.defaultBlockState();
+            return Blocks.RED_SAND.defaultBlockState();
         }
 
         if (layer <= 16) {
-            return Blocks.RED_TERRACOTTA.defaultBlockState();
+            return Blocks.TERRACOTTA.defaultBlockState();
         }
 
         if (layer <= 19) {
-            return Blocks.ORANGE_TERRACOTTA.defaultBlockState();
+            return Blocks.RED_SAND.defaultBlockState();
         }
 
         return Blocks.TERRACOTTA.defaultBlockState();
