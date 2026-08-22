@@ -3,6 +3,7 @@ package de.crocodilandy.sky;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceKey;
@@ -12,6 +13,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.StructureManager;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeManager;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.block.Blocks;
@@ -38,68 +40,39 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                     ).apply(instance, SkyChunkGenerator::new)
             );
 
-    /*
-     * ============================================================
-     * WELT / HÖHE
-     * ============================================================
-     */
-
     private static final int SURFACE_Y = 100;
-    private static final int MIN_SURFACE_Y = 88;
-    private static final int MAX_SURFACE_Y = 120;
+    private static final int MIN_SURFACE_Y = 90;
+    private static final int MAX_SURFACE_Y = 115;
 
-    private static final int MIN_BOTTOM_Y = 25;
-    private static final int MAX_BOTTOM_Y = 60;
+    private static final int MIN_BOTTOM_Y = 42;
+    private static final int MAX_BOTTOM_Y = 65;
 
     private static final int WORLD_MIN_Y = -64;
 
     /*
-     * ============================================================
-     * INSELGRUPPEN
-     * ============================================================
-     *
-     * Eine Zelle ist relativ groß. Dadurch sind Gruppen deutlich
-     * weiter auseinander. Mit 32 Chunks Sichtweite sollte man
-     * normalerweise nicht überall Inselgruppen sehen.
+     * Inselgruppen:
+     * Bei 32 Chunks Sichtweite soll normalerweise ungefähr
+     * eine weitere Gruppe sichtbar sein, aber nicht überall
+     * dicht gedrängt Inseln stehen.
      */
-
     private static final int GROUP_CELL_SIZE = 850;
-
-    /*
-     * Fast jede Zelle enthält eine Gruppe, aber durch den großen
-     * Abstand bleiben zwischen den Gruppen große Void-Bereiche.
-     */
     private static final double GROUP_CHANCE = 0.78;
 
     /*
-     * Hauptinseln pro Gruppe.
+     * Pro Gruppe:
+     * genau eine große Hauptinsel
+     * und mehrere kleine Neben-/Satelliteninseln.
      */
-    private static final int MIN_MAIN_ISLANDS = 3;
-    private static final int MAX_MAIN_ISLANDS = 7;
-
-    /*
-     * Kleine Nebeninseln.
-     */
-    private static final int MIN_SMALL_ISLANDS = 4;
+    private static final int MIN_SMALL_ISLANDS = 5;
     private static final int MAX_SMALL_ISLANDS = 10;
 
-    /*
-     * Radius der Hauptinseln.
-     */
-    private static final double MIN_MAIN_RADIUS = 22.0;
-    private static final double MAX_MAIN_RADIUS = 52.0;
+    private static final double MAIN_MIN_RADIUS = 34.0;
+    private static final double MAIN_MAX_RADIUS = 58.0;
 
-    /*
-     * Radius kleiner Inseln.
-     */
-    private static final double MIN_SMALL_RADIUS = 6.0;
-    private static final double MAX_SMALL_RADIUS = 20.0;
+    private static final double SMALL_MIN_RADIUS = 7.0;
+    private static final double SMALL_MAX_RADIUS = 24.0;
 
-    /*
-     * Inseln innerhalb einer Gruppe liegen näher zusammen.
-     */
-    private static final double MAIN_GROUP_RADIUS = 210.0;
-    private static final double SMALL_GROUP_RADIUS = 280.0;
+    private static final double GROUP_RADIUS = 210.0;
 
     private long worldSeed = 0L;
 
@@ -127,12 +100,6 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         );
     }
 
-    /*
-     * ============================================================
-     * CHUNK GENERATION
-     * ============================================================
-     */
-
     @Override
     public CompletableFuture<ChunkAccess> fillFromNoise(
             Blender blender,
@@ -159,48 +126,287 @@ public final class SkyChunkGenerator extends ChunkGenerator {
 
                 int worldZ = worldStartZ + localZ;
 
+                int highestSurface = Integer.MIN_VALUE;
+
                 for (Island island : islands) {
 
-                    int surface =
-                            getSurfaceHeight(
-                                    island,
-                                    worldX,
-                                    worldZ
-                            );
+                    int surface = getSurfaceHeight(
+                            island,
+                            worldX,
+                            worldZ
+                    );
 
-                    if (surface == Integer.MIN_VALUE) {
-                        continue;
+                    if (surface > highestSurface) {
+                        highestSurface = surface;
                     }
+                }
 
-                    for (int y = island.bottomY; y <= surface; y++) {
+                if (highestSurface == Integer.MIN_VALUE) {
+                    continue;
+                }
 
-                        if (!isInsideIsland(
+                Holder<Biome> biome =
+                        biomeSource.getNoiseBiome(
+                                worldX >> 2,
+                                SURFACE_Y >> 2,
+                                worldZ >> 2,
+                                randomState.sampler()
+                        );
+
+                for (int y = MIN_BOTTOM_Y; y <= highestSurface; y++) {
+
+                    Island bestIsland = null;
+                    double bestDistance = Double.MAX_VALUE;
+
+                    for (Island island : islands) {
+
+                        double distance = horizontalDistance(
                                 island,
                                 worldX,
-                                y,
                                 worldZ
-                        )) {
+                        );
+
+                        if (distance > island.radius * 1.35) {
                             continue;
                         }
 
-                        BlockState state =
-                                getBlockForIsland(
+                        double allowedRadius =
+                                getRadiusAtHeight(
                                         island,
                                         y,
-                                        surface
+                                        worldX,
+                                        worldZ
                                 );
 
-                        chunk.setBlockState(
-                                new BlockPos(worldX, y, worldZ),
-                                state,
-                                0
-                        );
+                        if (distance <= allowedRadius
+                                && distance < bestDistance) {
+
+                            bestDistance = distance;
+                            bestIsland = island;
+                        }
                     }
+
+                    if (bestIsland == null) {
+                        continue;
+                    }
+
+                    int surface = getSurfaceHeight(
+                            bestIsland,
+                            worldX,
+                            worldZ
+                    );
+
+                    if (surface == Integer.MIN_VALUE || y > surface) {
+                        continue;
+                    }
+
+                    BlockState state = getBiomeBlock(
+                            biome,
+                            worldX,
+                            y,
+                            worldZ,
+                            surface,
+                            bestIsland
+                    );
+
+                    chunk.setBlockState(
+                            new BlockPos(worldX, y, worldZ),
+                            state,
+                            0
+                    );
                 }
             }
         }
 
         return CompletableFuture.completedFuture(chunk);
+    }
+
+    /*
+     * ============================================================
+     * BIOME-ABHÄNGIGE BLOCKSCHICHTEN
+     * ============================================================
+     */
+
+    private BlockState getBiomeBlock(
+            Holder<Biome> biome,
+            int x,
+            int y,
+            int z,
+            int surface,
+            Island island
+    ) {
+        String biomeName = biome.unwrapKey()
+                .map(key -> key.location().toString())
+                .orElse("");
+
+        boolean badlands =
+                biomeName.contains("badlands")
+                        || biomeName.contains("mesa");
+
+        boolean desert =
+                biomeName.contains("desert");
+
+        boolean snowy =
+                biomeName.contains("snow")
+                        || biomeName.contains("frozen")
+                        || biomeName.contains("ice");
+
+        boolean taiga =
+                biomeName.contains("taiga")
+                        || biomeName.contains("grove");
+
+        boolean stony =
+                biomeName.contains("stony")
+                        || biomeName.contains("jagged")
+                        || biomeName.contains("peaks")
+                        || biomeName.contains("mountain");
+
+        /*
+         * BADLANDS / MESA
+         *
+         * Mehrere farbige Terrakotta-Ringe statt nur
+         * normaler Terrakotta.
+         */
+        if (badlands) {
+
+            if (y >= surface - 1) {
+                return getTerracottaLayer(y, island);
+            }
+
+            if (y >= surface - 18) {
+                return getTerracottaLayer(y, island);
+            }
+
+            if (y >= surface - 28) {
+                return Blocks.TERRACOTTA.defaultBlockState();
+            }
+
+            return Blocks.STONE.defaultBlockState();
+        }
+
+        /*
+         * Wüste
+         */
+        if (desert) {
+
+            if (y >= surface - 2) {
+                return Blocks.SAND.defaultBlockState();
+            }
+
+            if (y >= surface - 7) {
+                return Blocks.SANDSTONE.defaultBlockState();
+            }
+
+            return Blocks.STONE.defaultBlockState();
+        }
+
+        /*
+         * Schnee-/Eisbiome
+         */
+        if (snowy) {
+
+            if (y == surface) {
+                return Blocks.SNOW_BLOCK.defaultBlockState();
+            }
+
+            if (y >= surface - 3) {
+                return Blocks.DIRT.defaultBlockState();
+            }
+
+            return Blocks.STONE.defaultBlockState();
+        }
+
+        /*
+         * Taiga
+         */
+        if (taiga) {
+
+            if (y == surface) {
+                return Blocks.PODZOL.defaultBlockState();
+            }
+
+            if (y >= surface - 4) {
+                return Blocks.DIRT.defaultBlockState();
+            }
+
+            return Blocks.STONE.defaultBlockState();
+        }
+
+        /*
+         * Steinige Gebirge / Peaks.
+         */
+        if (stony) {
+
+            if (y >= surface - 1) {
+                return Blocks.STONE.defaultBlockState();
+            }
+
+            if (y >= surface - 4) {
+                return Blocks.DIRT.defaultBlockState();
+            }
+
+            return Blocks.STONE.defaultBlockState();
+        }
+
+        /*
+         * Standard:
+         * Plains, Forest, River, Jungle usw.
+         */
+        if (y >= surface - 1) {
+            return Blocks.GRASS_BLOCK.defaultBlockState();
+        }
+
+        if (y >= surface - 4) {
+            return Blocks.DIRT.defaultBlockState();
+        }
+
+        return Blocks.STONE.defaultBlockState();
+    }
+
+    private BlockState getTerracottaLayer(
+            int y,
+            Island island
+    ) {
+        int layer = Math.floorMod(
+                y
+                        + (int) island.noiseOffset
+                        + (int) (terrainNoise(
+                        island.x,
+                        island.z,
+                        island.noiseOffset
+                ) * 6.0),
+                24
+        );
+
+        if (layer < 4) {
+            return Blocks.TERRACOTTA.defaultBlockState();
+        }
+
+        if (layer < 7) {
+            return Blocks.ORANGE_TERRACOTTA.defaultBlockState();
+        }
+
+        if (layer < 10) {
+            return Blocks.YELLOW_TERRACOTTA.defaultBlockState();
+        }
+
+        if (layer < 13) {
+            return Blocks.RED_TERRACOTTA.defaultBlockState();
+        }
+
+        if (layer < 16) {
+            return Blocks.WHITE_TERRACOTTA.defaultBlockState();
+        }
+
+        if (layer < 19) {
+            return Blocks.LIGHT_GRAY_TERRACOTTA.defaultBlockState();
+        }
+
+        if (layer < 21) {
+            return Blocks.BROWN_TERRACOTTA.defaultBlockState();
+        }
+
+        return Blocks.TERRACOTTA.defaultBlockState();
     }
 
     /*
@@ -218,9 +424,6 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         int cellX = Math.floorDiv(x, GROUP_CELL_SIZE);
         int cellZ = Math.floorDiv(z, GROUP_CELL_SIZE);
 
-        /*
-         * 3x3 reicht wegen der Gruppengröße.
-         */
         for (int offsetX = -1; offsetX <= 1; offsetX++) {
 
             for (int offsetZ = -1; offsetZ <= 1; offsetZ++) {
@@ -228,7 +431,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                 int groupX = cellX + offsetX;
                 int groupZ = cellZ + offsetZ;
 
-                long seed =
+                long cellSeed =
                         mixSeed(
                                 worldSeed,
                                 groupX,
@@ -236,131 +439,46 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                         );
 
                 RandomSource random =
-                        RandomSource.create(seed);
+                        RandomSource.create(cellSeed);
 
                 if (random.nextDouble() > GROUP_CHANCE) {
                     continue;
                 }
 
-                /*
-                 * Gruppenzentrum.
-                 *
-                 * Großer zufälliger Versatz verhindert ein Raster.
-                 */
                 double centerX =
                         groupX * GROUP_CELL_SIZE
                                 + GROUP_CELL_SIZE / 2.0
-                                + random.nextDouble() * 300.0
-                                - 150.0;
+                                + random.nextDouble() * 260.0
+                                - 130.0;
 
                 double centerZ =
                         groupZ * GROUP_CELL_SIZE
                                 + GROUP_CELL_SIZE / 2.0
-                                + random.nextDouble() * 300.0
-                                - 150.0;
+                                + random.nextDouble() * 260.0
+                                - 130.0;
 
                 /*
-                 * Der Gruppentyp bestimmt Form und Material.
+                 * Genau eine große Hauptinsel.
                  */
-                IslandType type =
-                        IslandType.values()[
-                                random.nextInt(
-                                        IslandType.values().length
-                                )
-                        ];
+                double mainRadius =
+                        MAIN_MIN_RADIUS
+                                + random.nextDouble()
+                                * (MAIN_MAX_RADIUS
+                                - MAIN_MIN_RADIUS);
+
+                result.add(
+                        createIsland(
+                                random,
+                                centerX,
+                                centerZ,
+                                mainRadius,
+                                true
+                        )
+                );
 
                 /*
-                 * =================================================
-                 * HAUPTINSELN
-                 * =================================================
+                 * Mehrere deutlich kleinere Inseln.
                  */
-
-                int mainCount =
-                        MIN_MAIN_ISLANDS
-                                + random.nextInt(
-                                MAX_MAIN_ISLANDS
-                                        - MIN_MAIN_ISLANDS
-                                        + 1
-                        );
-
-                for (int i = 0; i < mainCount; i++) {
-
-                    double angle =
-                            random.nextDouble()
-                                    * Math.PI
-                                    * 2.0;
-
-                    /*
-                     * Nicht alle Inseln gleich weit vom Zentrum.
-                     */
-                    double distance =
-                            25.0
-                                    + Math.pow(
-                                    random.nextDouble(),
-                                    1.45
-                            ) * MAIN_GROUP_RADIUS;
-
-                    double islandX =
-                            centerX
-                                    + Math.cos(angle)
-                                    * distance;
-
-                    double islandZ =
-                            centerZ
-                                    + Math.sin(angle)
-                                    * distance;
-
-                    double radius =
-                            MIN_MAIN_RADIUS
-                                    + random.nextDouble()
-                                    * (
-                                    MAX_MAIN_RADIUS
-                                            - MIN_MAIN_RADIUS
-                            );
-
-                    /*
-                     * Manche Inseln sind deutlich größer.
-                     */
-                    if (random.nextDouble() < 0.18) {
-                        radius *=
-                                1.15
-                                        + random.nextDouble() * 0.35;
-                    }
-
-                    int surfaceY =
-                            SURFACE_Y
-                                    + random.nextInt(
-                                    MIN_SURFACE_Y - SURFACE_Y,
-                                    MAX_SURFACE_Y - SURFACE_Y + 1
-                            );
-
-                    int bottomY =
-                            MIN_BOTTOM_Y
-                                    + random.nextInt(
-                                    MAX_BOTTOM_Y
-                                            - MIN_BOTTOM_Y
-                                            + 1
-                            );
-
-                    result.add(
-                            createIsland(
-                                    random,
-                                    islandX,
-                                    islandZ,
-                                    radius,
-                                    surfaceY,
-                                    bottomY,
-                                    type
-                            )
-                    );
-                }
-
-                /*
-                 * =================================================
-                 * KLEINE NEBENINSELN
-                 * =================================================
-                 */
-
                 int smallCount =
                         MIN_SMALL_ISLANDS
                                 + random.nextInt(
@@ -376,12 +494,16 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                                     * Math.PI
                                     * 2.0;
 
+                    /*
+                     * Kleine Inseln näher um die Hauptinsel.
+                     */
                     double distance =
-                            60.0
+                            45.0
                                     + Math.pow(
                                     random.nextDouble(),
-                                    1.2
-                            ) * SMALL_GROUP_RADIUS;
+                                    0.72
+                            )
+                                    * GROUP_RADIUS;
 
                     double islandX =
                             centerX
@@ -394,25 +516,10 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                                     * distance;
 
                     double radius =
-                            MIN_SMALL_RADIUS
+                            SMALL_MIN_RADIUS
                                     + random.nextDouble()
-                                    * (
-                                    MAX_SMALL_RADIUS
-                                            - MIN_SMALL_RADIUS
-                            );
-
-                    int surfaceY =
-                            SURFACE_Y
-                                    + random.nextInt(
-                                    -8,
-                                    9
-                            );
-
-                    int bottomY =
-                            50
-                                    + random.nextInt(
-                                    12
-                            );
+                                    * (SMALL_MAX_RADIUS
+                                    - SMALL_MIN_RADIUS);
 
                     result.add(
                             createIsland(
@@ -420,9 +527,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                                     islandX,
                                     islandZ,
                                     radius,
-                                    surfaceY,
-                                    bottomY,
-                                    type
+                                    false
                             )
                     );
                 }
@@ -437,35 +542,51 @@ public final class SkyChunkGenerator extends ChunkGenerator {
             double x,
             double z,
             double radius,
-            int surfaceY,
-            int bottomY,
-            IslandType type
+            boolean mainIsland
     ) {
+        int surfaceY =
+                MIN_SURFACE_Y
+                        + random.nextInt(
+                        MAX_SURFACE_Y
+                                - MIN_SURFACE_Y
+                                + 1
+                );
+
+        int bottomY =
+                MIN_BOTTOM_Y
+                        + random.nextInt(
+                        MAX_BOTTOM_Y
+                                - MIN_BOTTOM_Y
+                                + 1
+                );
+
         double rotation =
                 random.nextDouble()
                         * Math.PI
                         * 2.0;
 
-        /*
-         * Unterschiedliche Streckung verhindert perfekte Kreise.
-         */
         double stretchX =
-                0.70
-                        + random.nextDouble() * 0.65;
+                0.72
+                        + random.nextDouble()
+                        * 0.65;
 
         double stretchZ =
-                0.70
-                        + random.nextDouble() * 0.65;
+                0.72
+                        + random.nextDouble()
+                        * 0.65;
+
+        double noiseOffset =
+                random.nextDouble()
+                        * 100000.0;
 
         /*
-         * Mehrere Noise-Werte sorgen für individuelle Inseln.
+         * Jede Insel bekommt eigene Berge.
+         * Hauptinseln deutlich stärkere.
          */
-        double noiseOffset =
-                random.nextDouble() * 100000.0;
-
         double mountainStrength =
-                0.4
-                        + random.nextDouble() * 1.4;
+                mainIsland
+                        ? 8.0 + random.nextDouble() * 16.0
+                        : 2.0 + random.nextDouble() * 7.0;
 
         return new Island(
                 x,
@@ -478,13 +599,13 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                 stretchZ,
                 noiseOffset,
                 mountainStrength,
-                type
+                mainIsland
         );
     }
 
     /*
      * ============================================================
-     * INSEL-FORM
+     * OBERFLÄCHE
      * ============================================================
      */
 
@@ -494,112 +615,130 @@ public final class SkyChunkGenerator extends ChunkGenerator {
             int z
     ) {
         double distance =
-                getNormalizedDistance(
+                horizontalDistance(
                         island,
                         x,
                         z
                 );
 
         /*
-         * Organischer Rand.
+         * Küstenrand wird zusätzlich durch Noise verformt.
          */
-        double edgeNoise =
+        double coastNoise =
                 terrainNoise(
-                        x * 0.055,
-                        z * 0.055,
-                        island.noiseOffset
-                );
+                        x * 0.70,
+                        z * 0.70,
+                        island.noiseOffset + 17.0
+                ) * 0.18;
 
-        double effectiveRadius =
-                island.radius
-                        * (
-                        1.0
-                                + edgeNoise * 0.18
-                );
+        double normalized =
+                distance / island.radius;
 
-        if (distance > effectiveRadius) {
+        normalized -= coastNoise;
+
+        if (normalized > 1.0) {
             return Integer.MIN_VALUE;
         }
 
-        double normalized =
-                distance / effectiveRadius;
+        normalized =
+                Math.max(
+                        0.0,
+                        normalized
+                );
 
-        /*
-         * Große Berge / Unebenheiten.
-         *
-         * Sie werden hauptsächlich im Inneren der Insel erzeugt,
-         * damit keine einzelnen Erdhaufen am Rand entstehen.
-         */
-        double mountainNoise =
+        double edge =
+                normalized;
+
+        double broadNoise =
                 terrainNoise(
-                        x * 0.018,
-                        z * 0.018,
-                        island.noiseOffset + 500.0
+                        x * 0.40,
+                        z * 0.40,
+                        island.noiseOffset
                 );
 
         double detailNoise =
                 terrainNoise(
-                        x * 0.075,
-                        z * 0.075,
-                        island.noiseOffset + 1700.0
+                        x * 1.35,
+                        z * 1.35,
+                        island.noiseOffset + 341.7
                 );
 
         /*
-         * Die Unebenheiten werden zum Rand hin abgeschwächt.
+         * Große, einzelne Bergformen.
+         *
+         * Dadurch entstehen nicht überall gleichmäßige
+         * Erdhügel, sondern einzelne deutlichere Berge.
          */
-        double interior =
-                Math.pow(
-                        Math.max(
-                                0.0,
-                                1.0 - normalized
-                        ),
-                        0.55
+        double mountainNoise =
+                ridgeNoise(
+                        x,
+                        z,
+                        island.noiseOffset + 900.0
                 );
 
-        /*
-         * Leichte natürliche Grundform.
-         */
-        double baseShape =
-                Math.pow(
-                        Math.max(
-                                0.0,
-                                1.0 - normalized
-                        ),
-                        1.6
-                ) * 2.5;
-
-        /*
-         * Größere einzelne Berge.
-         */
-        double mountains =
+        double mountainMask =
                 Math.max(
                         0.0,
-                        mountainNoise
-                )
-                        * 15.0
-                        * island.mountainStrength
-                        * interior;
-
-        /*
-         * Kleine Unebenheiten.
-         */
-        double detail =
-                detailNoise
-                        * 3.0
-                        * interior;
-
-        int height =
-                (int) Math.round(
-                        island.surfaceY
-                                + baseShape
-                                + mountains
-                                + detail
+                        1.0 - edge * 1.25
                 );
 
-        return clamp(
-                height,
+        mountainMask =
+                Math.pow(
+                        mountainMask,
+                        1.7
+                );
+
+        double mountains =
+                mountainNoise
+                        * island.mountainStrength
+                        * mountainMask;
+
+        /*
+         * Kleine Inseln bleiben deutlich ruhiger.
+         */
+        if (!island.mainIsland) {
+            mountains *= 0.45;
+        }
+
+        double edgeVariation =
+                terrainNoise(
+                        x * 1.9,
+                        z * 1.9,
+                        island.noiseOffset + 513.0
+                )
+                        * edge
+                        * 4.0;
+
+        double surfaceVariation =
+                broadNoise * 3.5
+                        + detailNoise * 2.5
+                        + edgeVariation
+                        + mountains;
+
+        /*
+         * Leichte natürliche Erhöhung zum Zentrum.
+         */
+        double broadShape =
+                Math.pow(
+                        Math.max(
+                                0.0,
+                                1.0 - edge
+                        ),
+                        1.6
+                )
+                        * 2.5;
+
+        int result =
+                (int) Math.round(
+                        island.surfaceY
+                                + surfaceVariation
+                                + broadShape
+                );
+
+        return MthClamp(
+                result,
                 MIN_SURFACE_Y,
-                MAX_SURFACE_Y
+                MAX_SURFACE_Y + 22
         );
     }
 
@@ -607,14 +746,12 @@ public final class SkyChunkGenerator extends ChunkGenerator {
      * ============================================================
      * INSELKÖRPER
      * ============================================================
-     *
-     * Hier wird die sehr spitze Unterseite erzeugt.
      */
 
-    private boolean isInsideIsland(
+    private double getRadiusAtHeight(
             Island island,
-            int x,
             int y,
+            int x,
             int z
     ) {
         int surface =
@@ -624,22 +761,13 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                         z
                 );
 
-        if (surface == Integer.MIN_VALUE) {
-            return false;
+        if (surface == Integer.MIN_VALUE
+                || y > surface
+                || y < island.bottomY) {
+            return 0.0;
         }
 
-        if (y > surface || y < island.bottomY) {
-            return false;
-        }
-
-        double distance =
-                getNormalizedDistance(
-                        island,
-                        x,
-                        z
-                );
-
-        double normalizedHeight =
+        double normalized =
                 (double) (y - island.bottomY)
                         / Math.max(
                         1,
@@ -647,133 +775,57 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                 );
 
         /*
-         * Sehr schnelle Verjüngung nach unten.
-         *
-         * Dadurch wird die Insel deutlich spitzer.
+         * Oben breit, nach unten sehr schnell schmaler.
          */
-        double shape =
+        double verticalShape =
                 0.035
                         + Math.pow(
-                        normalizedHeight,
+                        normalized,
                         0.48
-                ) * 0.965;
+                )
+                        * 0.965;
 
         /*
-         * Kleine natürliche Felsverformung.
+         * Organische Unterseite.
          */
-        double rockNoise =
+        double lowerNoise =
                 terrainNoise(
-                        x * 0.06,
-                        z * 0.06,
+                        x * 0.65,
+                        z * 0.65,
                         island.noiseOffset
                                 + y * 0.17
                 );
 
-        double allowedRadius =
-                island.radius
-                        * shape
-                        * (
-                        1.0
-                                + rockNoise * 0.08
+        double mediumNoise =
+                terrainNoise(
+                        x * 1.20,
+                        z * 1.20,
+                        island.noiseOffset
+                                + y * 0.29
                 );
 
-        return distance <= allowedRadius;
+        double noiseStrength =
+                (1.0 - normalized);
+
+        double rockVariation =
+                lowerNoise
+                        * island.radius
+                        * 0.12
+                        * noiseStrength
+                        + mediumNoise
+                        * island.radius
+                        * 0.055
+                        * noiseStrength;
+
+        return Math.max(
+                1.5,
+                island.radius
+                        * verticalShape
+                        + rockVariation
+        );
     }
 
-    /*
-     * ============================================================
-     * BLOCKS NACH INSELTYP
-     * ============================================================
-     */
-
-    private BlockState getBlockForIsland(
-            Island island,
-            int y,
-            int surface
-    ) {
-        int depth =
-                surface - y;
-
-        if (depth <= 1) {
-
-            return switch (island.type) {
-
-                case DESERT ->
-                        Blocks.SAND.defaultBlockState();
-
-                case BADLANDS ->
-                        Blocks.RED_SAND.defaultBlockState();
-
-                case SNOW ->
-                        Blocks.SNOW_BLOCK.defaultBlockState();
-
-                case STONY ->
-                        Blocks.STONE.defaultBlockState();
-
-                default ->
-                        Blocks.GRASS_BLOCK.defaultBlockState();
-            };
-        }
-
-        if (depth <= 4) {
-
-            return switch (island.type) {
-
-                case DESERT ->
-                        Blocks.SAND.defaultBlockState();
-
-                case BADLANDS ->
-                        Blocks.TERRACOTTA.defaultBlockState();
-
-                case SNOW ->
-                        Blocks.DIRT.defaultBlockState();
-
-                case STONY ->
-                        Blocks.STONE.defaultBlockState();
-
-                default ->
-                        Blocks.DIRT.defaultBlockState();
-            };
-        }
-
-        return switch (island.type) {
-
-            case DESERT ->
-                    Blocks.SANDSTONE.defaultBlockState();
-
-            case BADLANDS ->
-                    Blocks.TERRACOTTA.defaultBlockState();
-
-            case SNOW ->
-                    Blocks.STONE.defaultBlockState();
-
-            case STONY ->
-                    Blocks.STONE.defaultBlockState();
-
-            case FOREST ->
-                    Blocks.STONE.defaultBlockState();
-
-            case PLAINS ->
-                    Blocks.STONE.defaultBlockState();
-
-            case JUNGLE ->
-                    Blocks.STONE.defaultBlockState();
-
-            case SWAMP ->
-                    Blocks.STONE.defaultBlockState();
-
-            case DEFAULT ->
-                    Blocks.STONE.defaultBlockState();
-        };
-    }
-
-    /*
-     * ============================================================
-     * DISTANCE
-     * ============================================================
-     */
-
-    private double getNormalizedDistance(
+    private double horizontalDistance(
             Island island,
             int x,
             int z
@@ -782,14 +834,10 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         double dz = z - island.z;
 
         double cos =
-                Math.cos(
-                        island.rotation
-                );
+                Math.cos(island.rotation);
 
         double sin =
-                Math.sin(
-                        island.rotation
-                );
+                Math.sin(island.rotation);
 
         double localX =
                 dx * cos
@@ -821,41 +869,81 @@ public final class SkyChunkGenerator extends ChunkGenerator {
     ) {
         double a =
                 Math.sin(
-                        x
+                        x * 0.018
                                 + offset
                 );
 
         double b =
                 Math.sin(
-                        z * 1.17
+                        z * 0.023
                                 + offset * 1.37
                 );
 
         double c =
                 Math.sin(
-                        (x + z) * 0.73
-                                + offset * 0.61
+                        (x + z) * 0.011
+                                + offset * 0.73
                 );
 
         double d =
                 Math.cos(
-                        (x - z) * 1.43
-                                - offset * 0.91
+                        (x - z) * 0.007
+                                - offset * 1.11
                 );
 
         double e =
                 Math.sin(
-                        x * 2.31
-                                + z * 0.57
-                                + offset * 1.73
+                        x * 0.075
+                                + z * 0.051
+                                + offset * 0.31
                 );
 
         return
-                a * 0.25
-                        + b * 0.20
+                a * 0.27
+                        + b * 0.23
                         + c * 0.20
-                        + d * 0.20
-                        + e * 0.15;
+                        + d * 0.18
+                        + e * 0.12;
+    }
+
+    /*
+     * Für einzelne deutlichere Bergformen.
+     */
+    private double ridgeNoise(
+            double x,
+            double z,
+            double offset
+    ) {
+        double a =
+                terrainNoise(
+                        x * 0.32,
+                        z * 0.32,
+                        offset
+                );
+
+        double b =
+                terrainNoise(
+                        x * 0.75,
+                        z * 0.75,
+                        offset + 200.0
+                );
+
+        double ridge =
+                1.0 - Math.abs(
+                        a * 0.75
+                                + b * 0.25
+                );
+
+        ridge =
+                Math.max(
+                        0.0,
+                        ridge
+                );
+
+        return Math.pow(
+                ridge,
+                5.0
+        );
     }
 
     /*
@@ -889,12 +977,6 @@ public final class SkyChunkGenerator extends ChunkGenerator {
      * ============================================================
      * STRUKTUREN
      * ============================================================
-     *
-     * Vorerst deaktiviert, damit keine Trail Chambers, Strongholds
-     * oder Mineshafts im Void schweben.
-     *
-     * Im nächsten Schritt können wir hier gezielt eigene,
-     * biomabhängige Strukturen hinzufügen.
      */
 
     @Override
@@ -906,14 +988,11 @@ public final class SkyChunkGenerator extends ChunkGenerator {
             StructureTemplateManager structureTemplateManager,
             ResourceKey<Level> level
     ) {
-        // Absichtlich leer.
+        /*
+         * Vorläufig deaktiviert, damit keine Trial Chambers,
+         * Strongholds oder Mineshafts frei im Void schweben.
+         */
     }
-
-    /*
-     * ============================================================
-     * CARVER
-     * ============================================================
-     */
 
     @Override
     public void applyCarvers(
@@ -924,14 +1003,8 @@ public final class SkyChunkGenerator extends ChunkGenerator {
             StructureManager structureManager,
             ChunkAccess chunk
     ) {
-        // Keine Vanilla-Carver.
+        // Keine Carver.
     }
-
-    /*
-     * ============================================================
-     * SURFACE
-     * ============================================================
-     */
 
     @Override
     public void buildSurface(
@@ -940,27 +1013,15 @@ public final class SkyChunkGenerator extends ChunkGenerator {
             RandomState randomState,
             ChunkAccess protoChunk
     ) {
-        // Oberfläche wird bereits erzeugt.
+        // Oberfläche wird direkt erzeugt.
     }
-
-    /*
-     * ============================================================
-     * MOBS
-     * ============================================================
-     */
 
     @Override
     public void spawnOriginalMobs(
             WorldGenRegion worldGenRegion
     ) {
-        // Später über Biome.
+        // Vanilla-Mob-Generierung später.
     }
-
-    /*
-     * ============================================================
-     * HEIGHT / COLUMNS
-     * ============================================================
-     */
 
     @Override
     public int getGenDepth() {
@@ -1025,7 +1086,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         BlockState[] states =
                 new BlockState[
                         heightAccessor.getHeight()
-                ];
+                        ];
 
         for (int i = 0; i < states.length; i++) {
             states[i] =
@@ -1041,44 +1102,75 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         int minY =
                 heightAccessor.getMinY();
 
-        for (Island island : islands) {
+        for (int y = MIN_BOTTOM_Y;
+             y < heightAccessor.getMinY()
+                     + heightAccessor.getHeight();
+             y++) {
+
+            Island bestIsland = null;
+            double bestDistance = Double.MAX_VALUE;
+
+            for (Island island : islands) {
+
+                double distance =
+                        horizontalDistance(
+                                island,
+                                x,
+                                z
+                        );
+
+                if (distance > island.radius * 1.35) {
+                    continue;
+                }
+
+                double allowedRadius =
+                        getRadiusAtHeight(
+                                island,
+                                y,
+                                x,
+                                z
+                        );
+
+                if (distance <= allowedRadius
+                        && distance < bestDistance) {
+
+                    bestDistance = distance;
+                    bestIsland = island;
+                }
+            }
+
+            if (bestIsland == null) {
+                continue;
+            }
 
             int surface =
                     getSurfaceHeight(
-                            island,
+                            bestIsland,
                             x,
                             z
                     );
 
-            if (surface == Integer.MIN_VALUE) {
+            if (surface == Integer.MIN_VALUE
+                    || y > surface) {
                 continue;
             }
 
-            for (int y = island.bottomY; y <= surface; y++) {
+            int index = y - minY;
 
-                if (!isInsideIsland(
-                        island,
-                        x,
-                        y,
-                        z
-                )) {
-                    continue;
-                }
+            if (index < 0
+                    || index >= states.length) {
+                continue;
+            }
 
-                int index =
-                        y - minY;
-
-                if (index < 0
-                        || index >= states.length) {
-                    continue;
-                }
-
+            if (y >= surface - 1) {
                 states[index] =
-                        getBlockForIsland(
-                                island,
-                                y,
-                                surface
-                        );
+                        Blocks.GRASS_BLOCK.defaultBlockState();
+            } else if (y >= surface - 4) {
+                states[index] =
+                        Blocks.DIRT.defaultBlockState();
+            } else {
+                states[index] =
+                        Blocks.STONE.defaultBlockState();
             }
         }
 
@@ -1087,12 +1179,6 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                 states
         );
     }
-
-    /*
-     * ============================================================
-     * DEBUG
-     * ============================================================
-     */
 
     @Override
     public void addDebugScreenInfo(
@@ -1105,11 +1191,15 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         );
 
         result.add(
-                "Island groups: ~850 block grid"
+                "One large island + small satellites"
         );
 
         result.add(
-                "Main + small islands"
+                "Biome terrain: enabled"
+        );
+
+        result.add(
+                "Badlands layers: enabled"
         );
 
         result.add(
@@ -1117,7 +1207,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         );
     }
 
-    private static int clamp(
+    private static int MthClamp(
             int value,
             int min,
             int max
@@ -1131,30 +1221,6 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         );
     }
 
-    /*
-     * ============================================================
-     * INSELTYPEN
-     * ============================================================
-     *
-     * Diese bilden momentan die Grundlage für die verschiedenen
-     * Inselarten. Der nächste Schritt ist, sie mit den echten
-     * Minecraft-Biomen zu verbinden, damit nicht nur die Blöcke,
-     * sondern auch das tatsächlich gesetzte Biom passt.
-     */
-
-    private enum IslandType {
-
-        DEFAULT,
-        PLAINS,
-        FOREST,
-        JUNGLE,
-        DESERT,
-        BADLANDS,
-        SNOW,
-        STONY,
-        SWAMP
-    }
-
     private record Island(
             double x,
             double z,
@@ -1166,7 +1232,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
             double stretchZ,
             double noiseOffset,
             double mountainStrength,
-            IslandType type
+            boolean mainIsland
     ) {
     }
 }
