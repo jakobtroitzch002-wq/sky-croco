@@ -7,7 +7,6 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
@@ -17,6 +16,7 @@ import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeManager;
 import net.minecraft.world.level.biome.BiomeSource;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
@@ -51,14 +51,14 @@ public final class SkyChunkGenerator extends ChunkGenerator {
     private static final int WORLD_MIN_Y = -64;
 
     /*
-     * Abstand der Inselgruppen.
+     * Inselgruppen sind relativ weit voneinander entfernt.
      */
     private static final int GROUP_CELL_SIZE = 850;
     private static final double GROUP_CHANCE = 0.78;
 
     /*
-     * Eine große Hauptinsel pro Gruppe
-     * und mehrere kleine Satelliten.
+     * Pro Gruppe eine größere Hauptinsel
+     * und mehrere deutlich kleinere Satelliten.
      */
     private static final int MIN_SMALL_ISLANDS = 5;
     private static final int MAX_SMALL_ISLANDS = 10;
@@ -120,16 +120,13 @@ public final class SkyChunkGenerator extends ChunkGenerator {
 
         for (int localX = 0; localX < 16; localX++) {
 
-            int worldX =
-                    worldStartX + localX;
+            int worldX = worldStartX + localX;
 
             for (int localZ = 0; localZ < 16; localZ++) {
 
-                int worldZ =
-                        worldStartZ + localZ;
+                int worldZ = worldStartZ + localZ;
 
-                int highestSurface =
-                        Integer.MIN_VALUE;
+                int highestSurface = Integer.MIN_VALUE;
 
                 for (Island island : islands) {
 
@@ -164,8 +161,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                 ) {
 
                     Island bestIsland = null;
-                    double bestDistance =
-                            Double.MAX_VALUE;
+                    double bestDistance = Double.MAX_VALUE;
 
                     for (Island island : islands) {
 
@@ -195,7 +191,6 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                                 distance <= allowedRadius
                                         && distance < bestDistance
                         ) {
-
                             bestDistance = distance;
                             bestIsland = island;
                         }
@@ -245,12 +240,6 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         return CompletableFuture.completedFuture(chunk);
     }
 
-    /*
-     * ============================================================
-     * BIOME-BLÖCKE
-     * ============================================================
-     */
-
     private BlockState getBiomeBlock(
             Holder<Biome> biome,
             int x,
@@ -260,58 +249,57 @@ public final class SkyChunkGenerator extends ChunkGenerator {
             Island island
     ) {
 
-        String biomeName = "";
+        /*
+         * Die Biome werden hier über die Temperatur und
+         * die Eigenschaften des Biomes unterschieden.
+         *
+         * Dadurch ist keine ResourceLocation nötig und der
+         * Code funktioniert mit den aktuellen Minecraft-Mappings.
+         */
 
-        if (biome.unwrapKey().isPresent()) {
+        float temperature =
+                biome.value()
+                        .getBaseTemperature();
 
-            ResourceKey<Biome> key =
-                    biome.unwrapKey().get();
+        float downfall =
+                biome.value()
+                        .getModifiedClimateSettings()
+                        .downfall();
 
-            ResourceLocation location =
-                    key.identifier();
+        boolean hot =
+                temperature >= 1.5F;
 
-            biomeName =
-                    location.toString();
-        }
+        boolean warm =
+                temperature >= 0.8F;
 
-        boolean badlands =
-                biomeName.contains("badlands")
-                        || biomeName.contains("mesa");
+        boolean cold =
+                temperature <= 0.15F;
 
-        boolean desert =
-                biomeName.contains("desert");
+        boolean wet =
+                downfall >= 0.75F;
 
-        boolean snowy =
-                biomeName.contains("snow")
-                        || biomeName.contains("frozen")
-                        || biomeName.contains("ice");
+        boolean dry =
+                downfall <= 0.2F;
 
-        boolean taiga =
-                biomeName.contains("taiga")
-                        || biomeName.contains("grove");
-
-        boolean jungle =
-                biomeName.contains("jungle")
-                        || biomeName.contains("bamboo");
-
-        boolean swamp =
-                biomeName.contains("swamp")
-                        || biomeName.contains("mangrove");
-
-        boolean stony =
-                biomeName.contains("stony")
-                        || biomeName.contains("jagged")
-                        || biomeName.contains("peaks")
-                        || biomeName.contains("mountain");
+        double biomeNoise =
+                terrainNoise(
+                        x * 0.18,
+                        z * 0.18,
+                        island.noiseOffset + 7000.0
+                );
 
         /*
          * BADLANDS / MESA
+         *
+         * Sehr trocken + warm.
          */
-        if (badlands) {
+        if (hot && dry) {
 
-            if (y >= surface - 22) {
+            if (y >= surface - 30) {
                 return getTerracottaLayer(
                         y,
+                        x,
+                        z,
                         island
                 );
             }
@@ -322,13 +310,13 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         /*
          * WÜSTE
          */
-        if (desert) {
+        if (warm && dry) {
 
             if (y >= surface - 2) {
                 return Blocks.SAND.defaultBlockState();
             }
 
-            if (y >= surface - 7) {
+            if (y >= surface - 8) {
                 return Blocks.SANDSTONE.defaultBlockState();
             }
 
@@ -336,9 +324,9 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         }
 
         /*
-         * SCHNEE / EIS
+         * SCHNEE / EIS / KALTE BIOME
          */
-        if (snowy) {
+        if (cold) {
 
             if (y == surface) {
                 return Blocks.SNOW_BLOCK.defaultBlockState();
@@ -352,27 +340,17 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         }
 
         /*
-         * TAIGA
+         * FEUCHTE BIOME:
+         * Jungle, Swamp, Forest-artige Biome.
          */
-        if (taiga) {
-
-            if (y == surface) {
-                return Blocks.PODZOL.defaultBlockState();
-            }
-
-            if (y >= surface - 4) {
-                return Blocks.DIRT.defaultBlockState();
-            }
-
-            return Blocks.STONE.defaultBlockState();
-        }
-
-        /*
-         * JUNGLE
-         */
-        if (jungle) {
+        if (wet) {
 
             if (y >= surface - 1) {
+
+                if (biomeNoise > 0.25) {
+                    return Blocks.PODZOL.defaultBlockState();
+                }
+
                 return Blocks.GRASS_BLOCK.defaultBlockState();
             }
 
@@ -384,39 +362,28 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         }
 
         /*
-         * SWAMP
+         * Steinige / bergige Inselbereiche.
+         *
+         * Hier erscheint deutlich mehr Stein an den Bergen.
          */
-        if (swamp) {
+        if (
+                island.mainIsland
+                        && getMountainAmount(
+                        island,
+                        x,
+                        z
+                ) > 0.55
+        ) {
 
-            if (y >= surface - 1) {
-                return Blocks.GRASS_BLOCK.defaultBlockState();
-            }
-
-            if (y >= surface - 4) {
-                return Blocks.DIRT.defaultBlockState();
-            }
-
-            return Blocks.STONE.defaultBlockState();
-        }
-
-        /*
-         * STEINIGE / GEBIRGS-BIOME
-         */
-        if (stony) {
-
-            if (y >= surface - 1) {
+            if (y >= surface - 2) {
                 return Blocks.STONE.defaultBlockState();
             }
 
-            if (y >= surface - 4) {
-                return Blocks.DIRT.defaultBlockState();
-            }
-
             return Blocks.STONE.defaultBlockState();
         }
 
         /*
-         * STANDARD
+         * Normale Biome.
          */
         if (y >= surface - 1) {
             return Blocks.GRASS_BLOCK.defaultBlockState();
@@ -429,129 +396,106 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         return Blocks.STONE.defaultBlockState();
     }
 
-    /*
-     * ============================================================
-     * BADLANDS TERRACOTTA-SCHICHTEN
-     *
-     * Die Blocknamen werden hier über die Registry geladen,
-     * damit keine nicht existierenden Blocks.ORANGE_TERRACOTTA-
-     * Konstanten verwendet werden.
-     * ============================================================
-     */
-
     private BlockState getTerracottaLayer(
             int y,
+            int x,
+            int z,
             Island island
     ) {
+
+        /*
+         * Die Schichten sind nicht perfekt horizontal.
+         * Dadurch entstehen eher natürliche Badlands-Ringe.
+         */
+        double wave =
+                terrainNoise(
+                        x * 0.20,
+                        z * 0.20,
+                        island.noiseOffset + 500.0
+                ) * 7.0;
 
         int layer =
                 Math.floorMod(
                         y
-                                + (int) island.noiseOffset
-                                + (int) (
-                                terrainNoise(
-                                        island.x,
-                                        island.z,
-                                        island.noiseOffset
-                                ) * 6.0
-                        ),
-                        28
+                                + (int) wave
+                                + (int) island.noiseOffset,
+                        34
                 );
 
-        if (layer < 4) {
-            return getBlock(
-                    "terracotta"
-            );
+        if (layer < 5) {
+            return Blocks.TERRACOTTA.defaultBlockState();
         }
 
-        if (layer < 7) {
-            return getBlock(
+        if (layer < 9) {
+            return getBlockByName(
                     "orange_terracotta"
             );
         }
 
-        if (layer < 10) {
-            return getBlock(
+        if (layer < 12) {
+            return getBlockByName(
                     "yellow_terracotta"
             );
         }
 
-        if (layer < 13) {
-            return getBlock(
+        if (layer < 16) {
+            return getBlockByName(
                     "red_terracotta"
             );
         }
 
-        if (layer < 16) {
-            return getBlock(
+        if (layer < 19) {
+            return getBlockByName(
                     "white_terracotta"
             );
         }
 
-        if (layer < 19) {
-            return getBlock(
+        if (layer < 22) {
+            return getBlockByName(
                     "light_gray_terracotta"
             );
         }
 
-        if (layer < 22) {
-            return getBlock(
+        if (layer < 25) {
+            return getBlockByName(
                     "brown_terracotta"
             );
         }
 
-        if (layer < 25) {
-            return getBlock(
+        if (layer < 29) {
+            return getBlockByName(
                     "orange_terracotta"
             );
         }
 
-        return getBlock(
-                "terracotta"
-        );
-    }
-
-    private BlockState getBlock(
-            String name
-    ) {
-
-        /*
-         * Falls einzelne Registry-Namen in einer
-         * zukünftigen Minecraft-Version anders heißen,
-         * wird als sichere Alternative normale Terracotta
-         * verwendet.
-         */
-
-        return switch (name) {
-
-            case "orange_terracotta" ->
-                    Blocks.TERRACOTTA.defaultBlockState();
-
-            case "yellow_terracotta" ->
-                    Blocks.TERRACOTTA.defaultBlockState();
-
-            case "red_terracotta" ->
-                    Blocks.TERRACOTTA.defaultBlockState();
-
-            case "white_terracotta" ->
-                    Blocks.TERRACOTTA.defaultBlockState();
-
-            case "light_gray_terracotta" ->
-                    Blocks.TERRACOTTA.defaultBlockState();
-
-            case "brown_terracotta" ->
-                    Blocks.TERRACOTTA.defaultBlockState();
-
-            default ->
-                    Blocks.TERRACOTTA.defaultBlockState();
-        };
+        return Blocks.TERRACOTTA.defaultBlockState();
     }
 
     /*
-     * ============================================================
-     * INSELGRUPPEN
-     * ============================================================
+     * In deiner Minecraft-Version existieren die farbigen
+     * Terracotta-Blöcke offenbar nicht als direkte
+     * Blocks.CONSTANTS.
+     *
+     * Deshalb wird hier über die Block-Registry gearbeitet.
      */
+    private BlockState getBlockByName(
+            String name
+    ) {
+
+        for (Block block : net.minecraft.core.registries.BuiltInRegistries.BLOCK) {
+
+            String id =
+                    net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                            .getKey(block)
+                            .toString();
+
+            if (id.equals("minecraft:" + name)) {
+                return block.defaultBlockState();
+            }
+        }
+
+        return Blocks.TERRACOTTA.defaultBlockState();
+    }
 
     private List<Island> findNearbyIslands(
             int x,
@@ -662,10 +606,10 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                                     * 2.0;
 
                     double distance =
-                            45.0
+                            55.0
                                     + Math.pow(
                                     random.nextDouble(),
-                                    0.72
+                                    0.75
                             )
                                     * GROUP_RADIUS;
 
@@ -733,14 +677,14 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                         * 2.0;
 
         double stretchX =
-                0.72
+                0.70
                         + random.nextDouble()
-                        * 0.65;
+                        * 0.70;
 
         double stretchZ =
-                0.72
+                0.70
                         + random.nextDouble()
-                        * 0.65;
+                        * 0.70;
 
         double noiseOffset =
                 random.nextDouble()
@@ -748,10 +692,10 @@ public final class SkyChunkGenerator extends ChunkGenerator {
 
         double mountainStrength =
                 mainIsland
-                        ? 8.0
-                        + random.nextDouble() * 16.0
+                        ? 12.0
+                        + random.nextDouble() * 22.0
                         : 2.0
-                        + random.nextDouble() * 7.0;
+                        + random.nextDouble() * 6.0;
 
         return new Island(
                 x,
@@ -767,12 +711,6 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                 mainIsland
         );
     }
-
-    /*
-     * ============================================================
-     * OBERFLÄCHE
-     * ============================================================
-     */
 
     private int getSurfaceHeight(
             Island island,
@@ -793,7 +731,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                         z * 0.70,
                         island.noiseOffset + 17.0
                 )
-                        * 0.18;
+                        * 0.24;
 
         double normalized =
                 distance
@@ -816,47 +754,46 @@ public final class SkyChunkGenerator extends ChunkGenerator {
 
         double broadNoise =
                 terrainNoise(
-                        x * 0.40,
-                        z * 0.40,
+                        x * 0.35,
+                        z * 0.35,
                         island.noiseOffset
                 );
 
         double detailNoise =
                 terrainNoise(
-                        x * 1.35,
-                        z * 1.35,
+                        x * 1.25,
+                        z * 1.25,
                         island.noiseOffset
                                 + 341.7
                 );
 
-        double mountainNoise =
-                ridgeNoise(
+        double mountainAmount =
+                getMountainAmount(
+                        island,
                         x,
-                        z,
-                        island.noiseOffset
-                                + 900.0
+                        z
                 );
 
         double mountainMask =
                 Math.max(
                         0.0,
                         1.0
-                                - edge * 1.25
+                                - edge * 1.20
                 );
 
         mountainMask =
                 Math.pow(
                         mountainMask,
-                        1.7
+                        1.45
                 );
 
         double mountains =
-                mountainNoise
+                mountainAmount
                         * island.mountainStrength
                         * mountainMask;
 
         if (!island.mainIsland) {
-            mountains *= 0.45;
+            mountains *= 0.30;
         }
 
         double edgeVariation =
@@ -867,11 +804,11 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                                 + 513.0
                 )
                         * edge
-                        * 4.0;
+                        * 5.5;
 
         double surfaceVariation =
-                broadNoise * 3.5
-                        + detailNoise * 2.5
+                broadNoise * 4.0
+                        + detailNoise * 3.0
                         + edgeVariation
                         + mountains;
 
@@ -881,9 +818,9 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                                 0.0,
                                 1.0 - edge
                         ),
-                        1.6
+                        1.5
                 )
-                        * 2.5;
+                        * 3.0;
 
         int result =
                 (int) Math.round(
@@ -895,15 +832,39 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         return MthClamp(
                 result,
                 MIN_SURFACE_Y,
-                MAX_SURFACE_Y + 22
+                MAX_SURFACE_Y + 28
         );
     }
 
-    /*
-     * ============================================================
-     * INSELKÖRPER
-     * ============================================================
-     */
+    private double getMountainAmount(
+            Island island,
+            int x,
+            int z
+    ) {
+
+        double ridge =
+                ridgeNoise(
+                        x,
+                        z,
+                        island.noiseOffset + 900.0
+                );
+
+        double secondRidge =
+                ridgeNoise(
+                        x * 0.55,
+                        z * 0.55,
+                        island.noiseOffset + 2400.0
+                );
+
+        return Math.max(
+                0.0,
+                Math.min(
+                        1.0,
+                        ridge * 0.75
+                                + secondRidge * 0.25
+                )
+        );
+    }
 
     private double getRadiusAtHeight(
             Island island,
@@ -937,12 +898,12 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                 );
 
         double verticalShape =
-                0.035
+                0.025
                         + Math.pow(
                         normalized,
-                        0.48
+                        0.46
                 )
-                        * 0.965;
+                        * 0.975;
 
         double lowerNoise =
                 terrainNoise(
@@ -966,15 +927,15 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         double rockVariation =
                 lowerNoise
                         * island.radius
-                        * 0.12
+                        * 0.14
                         * noiseStrength
                         + mediumNoise
                         * island.radius
-                        * 0.055
+                        * 0.07
                         * noiseStrength;
 
         return Math.max(
-                1.5,
+                1.2,
                 island.radius
                         * verticalShape
                         + rockVariation
@@ -1019,12 +980,6 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                         + localZ * localZ
         );
     }
-
-    /*
-     * ============================================================
-     * NOISE
-     * ============================================================
-     */
 
     private double terrainNoise(
             double x,
@@ -1110,12 +1065,6 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         );
     }
 
-    /*
-     * ============================================================
-     * SEED
-     * ============================================================
-     */
-
     private static long mixSeed(
             long worldSeed,
             long x,
@@ -1147,12 +1096,6 @@ public final class SkyChunkGenerator extends ChunkGenerator {
 
         return value;
     }
-
-    /*
-     * ============================================================
-     * STRUKTUREN
-     * ============================================================
-     */
 
     @Override
     public void createStructures(
@@ -1284,6 +1227,14 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                 minY
                         + heightAccessor.getHeight();
 
+        Holder<Biome> biome =
+                biomeSource.getNoiseBiome(
+                        x >> 2,
+                        SURFACE_Y >> 2,
+                        z >> 2,
+                        randomState.sampler()
+                );
+
         for (
                 int y = MIN_BOTTOM_Y;
                 y < maxY;
@@ -1356,24 +1307,15 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                 continue;
             }
 
-            if (y >= surface - 1) {
-
-                states[index] =
-                        Blocks.GRASS_BLOCK
-                                .defaultBlockState();
-
-            } else if (y >= surface - 4) {
-
-                states[index] =
-                        Blocks.DIRT
-                                .defaultBlockState();
-
-            } else {
-
-                states[index] =
-                        Blocks.STONE
-                                .defaultBlockState();
-            }
+            states[index] =
+                    getBiomeBlock(
+                            biome,
+                            x,
+                            y,
+                            z,
+                            surface,
+                            bestIsland
+                    );
         }
 
         return new NoiseColumn(
@@ -1403,6 +1345,10 @@ public final class SkyChunkGenerator extends ChunkGenerator {
 
         result.add(
                 "Badlands layers: enabled"
+        );
+
+        result.add(
+                "Mountains: enabled"
         );
 
         result.add(
