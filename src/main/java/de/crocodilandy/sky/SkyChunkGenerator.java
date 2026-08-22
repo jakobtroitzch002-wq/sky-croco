@@ -68,7 +68,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
     /*
      * Nicht jede Zelle enthält eine Inselgruppe.
      */
-    private static final double GROUP_CHANCE = 0.55;
+    private static final double GROUP_CHANCE = 0.1;
 
     /*
      * Unterschiedliche Gruppengrößen.
