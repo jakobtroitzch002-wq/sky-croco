@@ -71,7 +71,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
      * Zellen verschoben, damit kein sichtbares Raster entsteht.
      */
 
-    private static final int GROUP_CELL_SIZE = 600;
+    private static final int GROUP_CELL_SIZE = 300;
 
     /*
      * Inseln innerhalb einer Gruppe.
@@ -90,7 +90,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
      *
      * Inseln innerhalb der Gruppe liegen näher zusammen.
      */
-    private static final double GROUP_RADIUS = 115.0;
+    private static final double GROUP_RADIUS = 80.0;
 
     /*
      * Tatsächlicher Welt-Seed.
@@ -280,14 +280,14 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                 double centerX =
                         groupX * GROUP_CELL_SIZE
                                 + GROUP_CELL_SIZE / 2.0
-                                + random.nextDouble() * 260.0
-                                - 130.0;
+                                + random.nextDouble() * 100.0
+                                - 50.0;
 
                 double centerZ =
                         groupZ * GROUP_CELL_SIZE
                                 + GROUP_CELL_SIZE / 2.0
-                                + random.nextDouble() * 260.0
-                                - 130.0;
+                                + random.nextDouble() * 100.0
+                                - 50.0;
 
                 int islandCount =
                         MIN_ISLANDS_PER_GROUP
