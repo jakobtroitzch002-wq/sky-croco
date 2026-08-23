@@ -70,14 +70,14 @@ public final class SkyChunkGenerator extends ChunkGenerator {
      * Diese Konstanten machen den Original-Code lesbarer, ohne die
      * bestehende Inselgenerierung zu verkürzen oder umzubauen.
      */
-    private static final int BIOME_MESA = 0;
-    private static final int BIOME_TAIGA = 1;
-    private static final int BIOME_MOUNTAINS = 2;
-    private static final int BIOME_DESERT = 3;
-    private static final int BIOME_FOREST = 4;
-    private static final int BIOME_SNOW = 5;
-    private static final int BIOME_MUSHROOM = 6;
-    private static final int BIOME_ROCKY = 7;
+    public static final int BIOME_MESA = 0;
+    public static final int BIOME_TAIGA = 1;
+    public static final int BIOME_MOUNTAINS = 2;
+    public static final int BIOME_DESERT = 3;
+    public static final int BIOME_FOREST = 4;
+    public static final int BIOME_SNOW = 5;
+    public static final int BIOME_MUSHROOM = 6;
+    public static final int BIOME_ROCKY = 7;
 
     private long worldSeed = 0L;
 
@@ -1042,6 +1042,84 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                 + b * 0.25
                 + c * 0.25
                 + d * 0.20;
+    }
+
+    /*
+     * Gibt für eine Weltposition denselben Insel-Biomtyp zurück,
+     * den die Inselgenerierung für die nächstgelegene Inselgruppe verwendet.
+     * Diese Methode wird von SkyBiomeSource für echte Minecraft-Biome benutzt.
+     */
+    public int getBiomeTypeForPosition(
+            int x,
+            int z
+    ) {
+        return getBiomeTypeForPosition(
+                this.worldSeed,
+                x,
+                z
+        );
+    }
+
+    public static int getBiomeTypeForPosition(
+            long seed,
+            int x,
+            int z
+    ) {
+        int cellX = Math.floorDiv(
+                x,
+                GROUP_CELL_SIZE
+        );
+
+        int cellZ = Math.floorDiv(
+                z,
+                GROUP_CELL_SIZE
+        );
+
+        int bestBiome = BIOME_FOREST;
+        double bestDistance = Double.MAX_VALUE;
+
+        for (int offsetX = -1; offsetX <= 1; offsetX++) {
+            for (int offsetZ = -1; offsetZ <= 1; offsetZ++) {
+                int groupX = cellX + offsetX;
+                int groupZ = cellZ + offsetZ;
+
+                RandomSource random = RandomSource.create(
+                        mixSeed(
+                                seed,
+                                groupX,
+                                groupZ
+                        )
+                );
+
+                double centerX =
+                        groupX * GROUP_CELL_SIZE
+                                + GROUP_CELL_SIZE / 2.0
+                                + random.nextDouble() * 220.0
+                                - 110.0;
+
+                double centerZ =
+                        groupZ * GROUP_CELL_SIZE
+                                + GROUP_CELL_SIZE / 2.0
+                                + random.nextDouble() * 220.0
+                                - 110.0;
+
+                int biomeType =
+                        random.nextInt(
+                                BIOME_ROCKY + 1
+                        );
+
+                double dx = x - centerX;
+                double dz = z - centerZ;
+                double distance = dx * dx + dz * dz;
+
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    bestBiome = biomeType;
+                }
+            }
+        }
+
+        return bestBiome;
     }
 
     private static long mixSeed(
