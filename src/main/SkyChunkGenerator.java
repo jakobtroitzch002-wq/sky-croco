@@ -1,1 +1,0 @@
-package de.crocodilandy.sky;
