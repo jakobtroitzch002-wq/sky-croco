@@ -12,6 +12,12 @@ public final class SkyWorldgen {
                     "sky"
             );
 
+    public static final Identifier SKY_BIOME_SOURCE_ID =
+            Identifier.fromNamespaceAndPath(
+                    "crocodilandy_sky",
+                    "sky_biomes"
+            );
+
     private SkyWorldgen() {
     }
 
@@ -20,6 +26,12 @@ public final class SkyWorldgen {
                 BuiltInRegistries.CHUNK_GENERATOR,
                 SKY_GENERATOR_ID,
                 SkyChunkGenerator.CODEC
+        );
+
+        Registry.register(
+                BuiltInRegistries.BIOME_SOURCE,
+                SKY_BIOME_SOURCE_ID,
+                SkyBiomeSource.CODEC
         );
     }
 }
