@@ -65,8 +65,28 @@ public final class SkyChunkGenerator extends ChunkGenerator {
 
     private static final double GROUP_RADIUS = 170.0;
 
+    /*
+     * Insel-Biomtypen.
+     * Diese Konstanten machen den Original-Code lesbarer, ohne die
+     * bestehende Inselgenerierung zu verkürzen oder umzubauen.
+     */
+    private static final int BIOME_MESA = 0;
+    private static final int BIOME_TAIGA = 1;
+    private static final int BIOME_MOUNTAINS = 2;
+    private static final int BIOME_DESERT = 3;
+    private static final int BIOME_FOREST = 4;
+    private static final int BIOME_SNOW = 5;
+    private static final int BIOME_MUSHROOM = 6;
+    private static final int BIOME_ROCKY = 7;
+
     private long worldSeed = 0L;
 
+    /*
+     * Wichtig:
+     * Die echten Minecraft-Biome werden über die BiomeSource geliefert.
+     * Der biomeType bestimmt zusätzlich die Form und Blockschichten
+     * der jeweiligen schwebenden Insel.
+     */
     public SkyChunkGenerator(BiomeSource biomeSource) {
         super(biomeSource);
     }
@@ -239,7 +259,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                                 - 110.0;
 
                 int biomeType =
-                        random.nextInt(8);
+                        random.nextInt(BIOME_ROCKY + 1);
 
                 /*
                  * Eine große Hauptinsel.
@@ -469,7 +489,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
          * Große Steininseln bekommen richtige Berge.
          */
         if (island.mainIsland
-                && island.biomeType == 2) {
+                && island.biomeType == BIOME_MOUNTAINS) {
 
             double mountain =
                     mountainNoise(
@@ -484,8 +504,8 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         /*
          * Taiga und Forest bekommen etwas hügeligere Oberflächen.
          */
-        if (island.biomeType == 1
-                || island.biomeType == 4) {
+        if (island.biomeType == BIOME_TAIGA
+                || island.biomeType == BIOME_FOREST) {
 
             terrain +=
                     terrainNoise(
@@ -498,7 +518,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         /*
          * Desert eher flacher.
          */
-        if (island.biomeType == 3) {
+        if (island.biomeType == BIOME_DESERT) {
             terrain *= 0.55;
         }
 
@@ -776,7 +796,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
          * Mesa:
          * horizontale farbige Terracotta-Schichten.
          */
-        if (island.biomeType == 0) {
+        if (island.biomeType == BIOME_MESA) {
 
             if (depth <= 1) {
                 return Blocks.RED_SAND.defaultBlockState();
@@ -795,7 +815,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         /*
          * Stein-/Berginsel.
          */
-        if (island.biomeType == 2) {
+        if (island.biomeType == BIOME_MOUNTAINS) {
 
             if (depth == 0) {
                 return Blocks.GRASS_BLOCK.defaultBlockState();
@@ -822,7 +842,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         /*
          * Wüsteninsel.
          */
-        if (island.biomeType == 3) {
+        if (island.biomeType == BIOME_DESERT) {
 
             if (depth <= 4) {
                 return Blocks.SAND.defaultBlockState();
@@ -838,7 +858,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         /*
          * Schneeinsel.
          */
-        if (island.biomeType == 5) {
+        if (island.biomeType == BIOME_SNOW) {
 
             if (depth == 0) {
                 return Blocks.SNOW_BLOCK.defaultBlockState();
@@ -854,7 +874,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         /*
          * Pilzinsel.
          */
-        if (island.biomeType == 6) {
+        if (island.biomeType == BIOME_MUSHROOM) {
 
             if (depth == 0) {
                 return Blocks.MYCELIUM.defaultBlockState();
@@ -870,7 +890,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         /*
          * Badlands-artige Steininsel.
          */
-        if (island.biomeType == 7) {
+        if (island.biomeType == BIOME_ROCKY) {
 
             if (depth <= 2) {
                 return Blocks.COARSE_DIRT.defaultBlockState();
