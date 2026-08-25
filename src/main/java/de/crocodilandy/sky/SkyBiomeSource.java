@@ -1,31 +1,70 @@
 package de.crocodilandy.sky;
 
 import com.mojang.serialization.MapCodec;
-import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.Holder;
-import net.minecraft.core.HolderGetter;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.RegistryOps;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeSource;
-import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.biome.Climate;
 
 import java.util.stream.Stream;
 
 public final class SkyBiomeSource extends BiomeSource {
 
-    public static final MapCodec<SkyBiomeSource> CODEC =
-            RecordCodecBuilder.mapCodec(instance ->
-                    instance.group(
-                            RegistryOps.retrieveGetter(Registries.BIOME)
-                    ).apply(instance, SkyBiomeSource::new)
-            );
+    private final long seed;
+    private final Holder<Biome> mesa;
+    private final Holder<Biome> taiga;
+    private final Holder<Biome> mountains;
+    private final Holder<Biome> desert;
+    private final Holder<Biome> forest;
+    private final Holder<Biome> snow;
+    private final Holder<Biome> mushroom;
+    private final Holder<Biome> rocky;
 
-    private final HolderGetter<Biome> biomes;
+    public SkyBiomeSource(
+            long seed,
+            Holder<Biome> mesa,
+            Holder<Biome> taiga,
+            Holder<Biome> mountains,
+            Holder<Biome> desert,
+            Holder<Biome> forest,
+            Holder<Biome> snow,
+            Holder<Biome> mushroom,
+            Holder<Biome> rocky
+    ) {
+        this.seed = seed;
+        this.mesa = mesa;
+        this.taiga = taiga;
+        this.mountains = mountains;
+        this.desert = desert;
+        this.forest = forest;
+        this.snow = snow;
+        this.mushroom = mushroom;
+        this.rocky = rocky;
+    }
 
-    public SkyBiomeSource(HolderGetter<Biome> biomes) {
-        this.biomes = biomes;
+    @Override
+    protected Stream<Holder<Biome>> collectPossibleBiomes() {
+        return Stream.of(mesa, taiga, mountains, desert, forest, snow, mushroom, rocky);
+    }
+
+    @Override
+    public Holder<Biome> getNoiseBiome(
+            int blockX,
+            int blockY,
+            int blockZ,
+            Climate.Sampler sampler
+    ) {
+        return switch (SkyChunkGenerator.getBiomeTypeForPosition(seed, blockX, blockZ)) {
+            case SkyChunkGenerator.BIOME_MESA -> mesa;
+            case SkyChunkGenerator.BIOME_TAIGA -> taiga;
+            case SkyChunkGenerator.BIOME_MOUNTAINS -> mountains;
+            case SkyChunkGenerator.BIOME_DESERT -> desert;
+            case SkyChunkGenerator.BIOME_FOREST -> forest;
+            case SkyChunkGenerator.BIOME_SNOW -> snow;
+            case SkyChunkGenerator.BIOME_MUSHROOM -> mushroom;
+            case SkyChunkGenerator.BIOME_ROCKY -> rocky;
+            default -> forest;
+        };
     }
 
     @Override
@@ -33,49 +72,10 @@ public final class SkyBiomeSource extends BiomeSource {
         return CODEC;
     }
 
-    @Override
-    protected Stream<Holder<Biome>> collectPossibleBiomes() {
-        return Stream.of(
-                biomes.getOrThrow(Biomes.BADLANDS),
-                biomes.getOrThrow(Biomes.TAIGA),
-                biomes.getOrThrow(Biomes.STONY_PEAKS),
-                biomes.getOrThrow(Biomes.DESERT),
-                biomes.getOrThrow(Biomes.FOREST),
-                biomes.getOrThrow(Biomes.SNOWY_PLAINS),
-                biomes.getOrThrow(Biomes.MUSHROOM_FIELDS),
-                biomes.getOrThrow(Biomes.WINDSWEPT_HILLS)
-        );
-    }
-
-    @Override
-    public Holder<Biome> getNoiseBiome(
-            int quartX,
-            int quartY,
-            int quartZ,
-            Climate.Sampler sampler
-    ) {
-        int blockX = quartX << 2;
-        int blockZ = quartZ << 2;
-
-        return switch (SkyChunkGenerator.getBiomeTypeForPosition(blockX, blockZ)) {
-            case SkyChunkGenerator.BIOME_MESA ->
-                    biomes.getOrThrow(Biomes.BADLANDS);
-            case SkyChunkGenerator.BIOME_TAIGA ->
-                    biomes.getOrThrow(Biomes.TAIGA);
-            case SkyChunkGenerator.BIOME_MOUNTAINS ->
-                    biomes.getOrThrow(Biomes.STONY_PEAKS);
-            case SkyChunkGenerator.BIOME_DESERT ->
-                    biomes.getOrThrow(Biomes.DESERT);
-            case SkyChunkGenerator.BIOME_FOREST ->
-                    biomes.getOrThrow(Biomes.FOREST);
-            case SkyChunkGenerator.BIOME_SNOW ->
-                    biomes.getOrThrow(Biomes.SNOWY_PLAINS);
-            case SkyChunkGenerator.BIOME_MUSHROOM ->
-                    biomes.getOrThrow(Biomes.MUSHROOM_FIELDS);
-            case SkyChunkGenerator.BIOME_ROCKY ->
-                    biomes.getOrThrow(Biomes.WINDSWEPT_HILLS);
-            default ->
-                    biomes.getOrThrow(Biomes.FOREST);
-        };
-    }
+    public static final MapCodec<SkyBiomeSource> CODEC =
+            MapCodec.unit(new SkyBiomeSource(
+                    0L,
+                    null, null, null, null,
+                    null, null, null, null
+            ));
 }
