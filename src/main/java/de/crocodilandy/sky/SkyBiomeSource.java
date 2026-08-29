@@ -1,16 +1,7 @@
-// ERSETZE DEN KOMPLETTEN INHALT VON:
-// src/main/java/de/crocodilandy/sky/SkyBiomeSource.java
-//
-// WICHTIG:
-// Die bisherige Version hatte im CODEC null-Biome.
-// Genau das verursachte den Server-Crash bei BiomeSource.possibleBiomes.
-//
-// Diese Version verwendet stattdessen einen Vanilla-BiomeSource als Grundlage.
-// Dadurch sind immer echte Biome vorhanden und niemals null.
-
 package de.crocodilandy.sky;
 
 import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.Holder;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeSource;
@@ -20,42 +11,127 @@ import java.util.stream.Stream;
 
 public final class SkyBiomeSource extends BiomeSource {
 
-    private final BiomeSource fallbackBiomeSource;
+```
+private final long seed;
+private final Holder<Biome> mesa;
+private final Holder<Biome> taiga;
+private final Holder<Biome> mountains;
+private final Holder<Biome> desert;
+private final Holder<Biome> forest;
+private final Holder<Biome> snow;
+private final Holder<Biome> mushroom;
+private final Holder<Biome> rocky;
 
-    public SkyBiomeSource(BiomeSource fallbackBiomeSource) {
-        this.fallbackBiomeSource = fallbackBiomeSource;
-    }
+public SkyBiomeSource(
+        long seed,
+        Holder<Biome> mesa,
+        Holder<Biome> taiga,
+        Holder<Biome> mountains,
+        Holder<Biome> desert,
+        Holder<Biome> forest,
+        Holder<Biome> snow,
+        Holder<Biome> mushroom,
+        Holder<Biome> rocky
+) {
+    this.seed = seed;
+    this.mesa = mesa;
+    this.taiga = taiga;
+    this.mountains = mountains;
+    this.desert = desert;
+    this.forest = forest;
+    this.snow = snow;
+    this.mushroom = mushroom;
+    this.rocky = rocky;
+}
 
-    public static final MapCodec<SkyBiomeSource> CODEC =
-            BiomeSource.CODEC
-                    .fieldOf("fallback")
-                    .xmap(
-                            SkyBiomeSource::new,
-                            source -> source.fallbackBiomeSource
-                    );
+public static final MapCodec<SkyBiomeSource> CODEC =
+        RecordCodecBuilder.mapCodec(instance ->
+                instance.group(
+                        Biome.CODEC.fieldOf("mesa")
+                                .forGetter(source -> source.mesa),
 
-    @Override
-    protected Stream<Holder<Biome>> collectPossibleBiomes() {
-        return fallbackBiomeSource.possibleBiomes().stream();
-    }
+                        Biome.CODEC.fieldOf("taiga")
+                                .forGetter(source -> source.taiga),
 
-    @Override
-    public Holder<Biome> getNoiseBiome(
-            int blockX,
-            int blockY,
-            int blockZ,
-            Climate.Sampler sampler
-    ) {
-        return fallbackBiomeSource.getNoiseBiome(
-                blockX,
-                blockY,
-                blockZ,
-                sampler
+                        Biome.CODEC.fieldOf("mountains")
+                                .forGetter(source -> source.mountains),
+
+                        Biome.CODEC.fieldOf("desert")
+                                .forGetter(source -> source.desert),
+
+                        Biome.CODEC.fieldOf("forest")
+                                .forGetter(source -> source.forest),
+
+                        Biome.CODEC.fieldOf("snow")
+                                .forGetter(source -> source.snow),
+
+                        Biome.CODEC.fieldOf("mushroom")
+                                .forGetter(source -> source.mushroom),
+
+                        Biome.CODEC.fieldOf("rocky")
+                                .forGetter(source -> source.rocky)
+                ).apply(
+                        instance,
+                        (mesa, taiga, mountains, desert,
+                         forest, snow, mushroom, rocky) ->
+                                new SkyBiomeSource(
+                                        0L,
+                                        mesa,
+                                        taiga,
+                                        mountains,
+                                        desert,
+                                        forest,
+                                        snow,
+                                        mushroom,
+                                        rocky
+                                )
+                )
         );
-    }
 
-    @Override
-    protected MapCodec<? extends BiomeSource> codec() {
-        return CODEC;
-    }
+@Override
+protected Stream<Holder<Biome>> collectPossibleBiomes() {
+    return Stream.of(
+            mesa,
+            taiga,
+            mountains,
+            desert,
+            forest,
+            snow,
+            mushroom,
+            rocky
+    );
+}
+
+@Override
+public Holder<Biome> getNoiseBiome(
+        int blockX,
+        int blockY,
+        int blockZ,
+        Climate.Sampler sampler
+) {
+    return switch (
+            SkyChunkGenerator.getBiomeTypeForPosition(
+                    seed,
+                    blockX,
+                    blockZ
+            )
+    ) {
+        case SkyChunkGenerator.BIOME_MESA -> mesa;
+        case SkyChunkGenerator.BIOME_TAIGA -> taiga;
+        case SkyChunkGenerator.BIOME_MOUNTAINS -> mountains;
+        case SkyChunkGenerator.BIOME_DESERT -> desert;
+        case SkyChunkGenerator.BIOME_FOREST -> forest;
+        case SkyChunkGenerator.BIOME_SNOW -> snow;
+        case SkyChunkGenerator.BIOME_MUSHROOM -> mushroom;
+        case SkyChunkGenerator.BIOME_ROCKY -> rocky;
+        default -> forest;
+    };
+}
+
+@Override
+protected MapCodec<? extends BiomeSource> codec() {
+    return CODEC;
+}
+```
+
 }
