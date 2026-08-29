@@ -21,7 +21,32 @@
             "minecraft:savanna",
             "minecraft:cherry_grove",
             "minecraft:birch_forest",
-            "minecraft:the_void"
+            "minecraft:the_void",
+            "minecraft:sunflower_plains",
+            "minecraft:ice_spikes",
+            "minecraft:mangrove_swamp",
+            "minecraft:flower_forest",
+            "minecraft:dark_forest",
+            "minecraft:old_growth_birch_forest",
+            "minecraft:old_growth_pine_taiga",
+            "minecraft:old_growth_spruce_taiga",
+            "minecraft:snowy_taiga",
+            "minecraft:savanna_plateau",
+            "minecraft:windswept_gravelly_hills",
+            "minecraft:windswept_forest",
+            "minecraft:windswept_savanna",
+            "minecraft:sparse_jungle",
+            "minecraft:bamboo_jungle",
+            "minecraft:eroded_badlands",
+            "minecraft:wooded_badlands",
+            "minecraft:meadow",
+            "minecraft:grove",
+            "minecraft:snowy_slopes",
+            "minecraft:frozen_peaks",
+            "minecraft:jagged_peaks",
+            "minecraft:pale_garden",
+            "minecraft:stony_shore",
+            "minecraft:plains"
           ]
         }
       }
