@@ -1,0 +1,16 @@
+{
+  "placement": {
+    "type": "minecraft:concentric_rings",
+    "count": 1,
+    "distance": 8,
+    "preferred_biomes": "minecraft:plains",
+    "salt": 0,
+    "spread": 1
+  },
+  "structures": [
+    {
+      "structure": "minecraft:stronghold",
+      "weight": 1
+    }
+  ]
+}
