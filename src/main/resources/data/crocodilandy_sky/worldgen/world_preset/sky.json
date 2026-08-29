@@ -14,7 +14,14 @@
             "minecraft:forest",
             "minecraft:snowy_plains",
             "minecraft:mushroom_fields",
-            "minecraft:windswept_hills"
+            "minecraft:windswept_hills",
+            "minecraft:plains",
+            "minecraft:jungle",
+            "minecraft:swamp",
+            "minecraft:savanna",
+            "minecraft:cherry_grove",
+            "minecraft:birch_forest",
+            "minecraft:the_void"
           ]
         }
       }
