@@ -3,6 +3,9 @@ package de.crocodilandy.sky;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.Holder;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.biome.Climate;
@@ -11,127 +14,98 @@ import java.util.stream.Stream;
 
 public final class SkyBiomeSource extends BiomeSource {
 
-```
-private final long seed;
-private final Holder<Biome> mesa;
-private final Holder<Biome> taiga;
-private final Holder<Biome> mountains;
-private final Holder<Biome> desert;
-private final Holder<Biome> forest;
-private final Holder<Biome> snow;
-private final Holder<Biome> mushroom;
-private final Holder<Biome> rocky;
-
-public SkyBiomeSource(
-        long seed,
-        Holder<Biome> mesa,
-        Holder<Biome> taiga,
-        Holder<Biome> mountains,
-        Holder<Biome> desert,
-        Holder<Biome> forest,
-        Holder<Biome> snow,
-        Holder<Biome> mushroom,
-        Holder<Biome> rocky
-) {
-    this.seed = seed;
-    this.mesa = mesa;
-    this.taiga = taiga;
-    this.mountains = mountains;
-    this.desert = desert;
-    this.forest = forest;
-    this.snow = snow;
-    this.mushroom = mushroom;
-    this.rocky = rocky;
-}
-
-public static final MapCodec<SkyBiomeSource> CODEC =
-        RecordCodecBuilder.mapCodec(instance ->
-                instance.group(
-                        Biome.CODEC.fieldOf("mesa")
-                                .forGetter(source -> source.mesa),
-
-                        Biome.CODEC.fieldOf("taiga")
-                                .forGetter(source -> source.taiga),
-
-                        Biome.CODEC.fieldOf("mountains")
-                                .forGetter(source -> source.mountains),
-
-                        Biome.CODEC.fieldOf("desert")
-                                .forGetter(source -> source.desert),
-
-                        Biome.CODEC.fieldOf("forest")
-                                .forGetter(source -> source.forest),
-
-                        Biome.CODEC.fieldOf("snow")
-                                .forGetter(source -> source.snow),
-
-                        Biome.CODEC.fieldOf("mushroom")
-                                .forGetter(source -> source.mushroom),
-
-                        Biome.CODEC.fieldOf("rocky")
-                                .forGetter(source -> source.rocky)
-                ).apply(
-                        instance,
-                        (mesa, taiga, mountains, desert,
-                         forest, snow, mushroom, rocky) ->
-                                new SkyBiomeSource(
-                                        0L,
-                                        mesa,
-                                        taiga,
-                                        mountains,
-                                        desert,
-                                        forest,
-                                        snow,
-                                        mushroom,
-                                        rocky
-                                )
-                )
-        );
-
-@Override
-protected Stream<Holder<Biome>> collectPossibleBiomes() {
-    return Stream.of(
-            mesa,
-            taiga,
-            mountains,
-            desert,
-            forest,
-            snow,
-            mushroom,
-            rocky
+    public static final ResourceKey<Biome> MESA = ResourceKey.create(
+            BuiltInRegistries.BIOME.key(),
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("minecraft", "badlands")
     );
-}
 
-@Override
-public Holder<Biome> getNoiseBiome(
-        int blockX,
-        int blockY,
-        int blockZ,
-        Climate.Sampler sampler
-) {
-    return switch (
-            SkyChunkGenerator.getBiomeTypeForPosition(
-                    seed,
-                    blockX,
-                    blockZ
-            )
+    public static final ResourceKey<Biome> TAIGA = ResourceKey.create(
+            BuiltInRegistries.BIOME.key(),
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("minecraft", "taiga")
+    );
+
+    public static final ResourceKey<Biome> MOUNTAINS = ResourceKey.create(
+            BuiltInRegistries.BIOME.key(),
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("minecraft", "stony_peaks")
+    );
+
+    public static final ResourceKey<Biome> DESERT = ResourceKey.create(
+            BuiltInRegistries.BIOME.key(),
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("minecraft", "desert")
+    );
+
+    public static final ResourceKey<Biome> FOREST = ResourceKey.create(
+            BuiltInRegistries.BIOME.key(),
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("minecraft", "forest")
+    );
+
+    public static final ResourceKey<Biome> SNOW = ResourceKey.create(
+            BuiltInRegistries.BIOME.key(),
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("minecraft", "snowy_plains")
+    );
+
+    public static final ResourceKey<Biome> MUSHROOM = ResourceKey.create(
+            BuiltInRegistries.BIOME.key(),
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("minecraft", "mushroom_fields")
+    );
+
+    public static final ResourceKey<Biome> ROCKY = ResourceKey.create(
+            BuiltInRegistries.BIOME.key(),
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("minecraft", "windswept_hills")
+    );
+
+    public static final MapCodec<SkyBiomeSource> CODEC =
+            RecordCodecBuilder.mapCodec(instance ->
+                    instance.group(
+                            Biome.CODEC.listOf().fieldOf("biomes")
+                                    .forGetter(source -> source.biomes.stream().toList())
+                    ).apply(instance, list -> new SkyBiomeSource(list))
+            );
+
+    private final java.util.List<Holder<Biome>> biomes;
+
+    public SkyBiomeSource(java.util.List<Holder<Biome>> biomes) {
+        this.biomes = java.util.List.copyOf(biomes);
+    }
+
+    public SkyBiomeSource(RegistryAccess registries) {
+        this.biomes = java.util.List.of(
+                registries.registryOrThrow(BuiltInRegistries.BIOME.key()).getOrThrow(MESA),
+                registries.registryOrThrow(BuiltInRegistries.BIOME.key()).getOrThrow(TAIGA),
+                registries.registryOrThrow(BuiltInRegistries.BIOME.key()).getOrThrow(MOUNTAINS),
+                registries.registryOrThrow(BuiltInRegistries.BIOME.key()).getOrThrow(DESERT),
+                registries.registryOrThrow(BuiltInRegistries.BIOME.key()).getOrThrow(FOREST),
+                registries.registryOrThrow(BuiltInRegistries.BIOME.key()).getOrThrow(SNOW),
+                registries.registryOrThrow(BuiltInRegistries.BIOME.key()).getOrThrow(MUSHROOM),
+                registries.registryOrThrow(BuiltInRegistries.BIOME.key()).getOrThrow(ROCKY)
+        );
+    }
+
+    @Override
+    protected Stream<Holder<Biome>> collectPossibleBiomes() {
+        return biomes.stream();
+    }
+
+    @Override
+    public Holder<Biome> getNoiseBiome(
+            int quartX,
+            int quartY,
+            int quartZ,
+            Climate.Sampler sampler
     ) {
-        case SkyChunkGenerator.BIOME_MESA -> mesa;
-        case SkyChunkGenerator.BIOME_TAIGA -> taiga;
-        case SkyChunkGenerator.BIOME_MOUNTAINS -> mountains;
-        case SkyChunkGenerator.BIOME_DESERT -> desert;
-        case SkyChunkGenerator.BIOME_FOREST -> forest;
-        case SkyChunkGenerator.BIOME_SNOW -> snow;
-        case SkyChunkGenerator.BIOME_MUSHROOM -> mushroom;
-        case SkyChunkGenerator.BIOME_ROCKY -> rocky;
-        default -> forest;
-    };
-}
+        int blockX = quartX << 2;
+        int blockZ = quartZ << 2;
 
-@Override
-protected MapCodec<? extends BiomeSource> codec() {
-    return CODEC;
-}
-```
+        int type = SkyChunkGenerator.getBiomeTypeForPosition(0L, blockX, blockZ);
+        if (type < 0 || type >= biomes.size()) {
+            type = SkyChunkGenerator.BIOME_FOREST;
+        }
 
+        return biomes.get(type);
+    }
+
+    @Override
+    protected MapCodec<? extends BiomeSource> codec() {
+        return CODEC;
+    }
 }
