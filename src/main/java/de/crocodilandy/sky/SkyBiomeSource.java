@@ -44,10 +44,12 @@ public final class SkyBiomeSource extends BiomeSource {
         int blockX = quartX << 2;
         int blockZ = quartZ << 2;
 
-        // The current generator's island distribution is deterministic for the
-        // world seed. The biome source currently uses the same zero-seed layout
-        // because the biome-source codec has no seed field in this datapack format.
-        int type = SkyChunkGenerator.getBiomeTypeForPosition(0L, blockX, blockZ);
+        int type = SkyChunkGenerator.getBiomeTypeForPosition(
+                SkyChunkGenerator.getCurrentWorldSeed(),
+                blockX,
+                blockZ
+        );
+
         if (type < 0 || type >= 8) {
             type = SkyChunkGenerator.BIOME_FOREST;
         }
