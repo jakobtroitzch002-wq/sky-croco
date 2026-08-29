@@ -5,7 +5,11 @@
       "generator": {
         "type": "crocodilandy_sky:sky",
         "biome_source": {
-          "type": "crocodilandy_sky:sky_biomes"
+          "type": "crocodilandy_sky:sky_biomes",
+          "fallback": {
+            "type": "minecraft:multi_noise",
+            "preset": "minecraft:overworld"
+          }
         }
       }
     },
