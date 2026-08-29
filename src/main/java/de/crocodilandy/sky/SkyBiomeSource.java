@@ -3,11 +3,8 @@ package de.crocodilandy.sky;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.Holder;
-import net.minecraft.core.Registry;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeSource;
-import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.biome.Climate;
 
 import java.util.List;
@@ -47,6 +44,9 @@ public final class SkyBiomeSource extends BiomeSource {
         int blockX = quartX << 2;
         int blockZ = quartZ << 2;
 
+        // The current generator's island distribution is deterministic for the
+        // world seed. The biome source currently uses the same zero-seed layout
+        // because the biome-source codec has no seed field in this datapack format.
         int type = SkyChunkGenerator.getBiomeTypeForPosition(0L, blockX, blockZ);
         if (type < 0 || type >= 8) {
             type = SkyChunkGenerator.BIOME_FOREST;
