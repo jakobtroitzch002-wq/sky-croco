@@ -23,15 +23,15 @@ public final class SkyBiomeSource extends BiomeSource {
     private final List<Holder<Biome>> biomes;
 
     public SkyBiomeSource(List<Holder<Biome>> biomes) {
-        if (biomes.size() < 8) {
-            throw new IllegalArgumentException("SkyBiomeSource requires 8 biomes");
+        if (biomes.size() < 15) {
+            throw new IllegalArgumentException("SkyBiomeSource requires 15 biomes");
         }
         this.biomes = List.copyOf(biomes);
     }
 
     @Override
     protected Stream<Holder<Biome>> collectPossibleBiomes() {
-        return biomes.stream().limit(8);
+        return biomes.stream().limit(15);
     }
 
     @Override
@@ -50,7 +50,11 @@ public final class SkyBiomeSource extends BiomeSource {
                 blockZ
         );
 
-        if (type < 0 || type >= 8) {
+        if (type < 0) {
+            return biomes.get(14);
+        }
+
+        if (type >= 14) {
             type = SkyChunkGenerator.BIOME_FOREST;
         }
 
