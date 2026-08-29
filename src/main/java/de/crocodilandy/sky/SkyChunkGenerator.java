@@ -40,7 +40,6 @@ public final class SkyChunkGenerator extends ChunkGenerator {
 
     private static final int WORLD_MIN_Y = -64;
     private static final int SURFACE_Y = 105;
-
     private static final int GROUP_CELL_SIZE = 850;
 
     private static final int MIN_SMALL_ISLANDS = 3;
@@ -48,10 +47,8 @@ public final class SkyChunkGenerator extends ChunkGenerator {
 
     private static final double MAIN_ISLAND_MIN_RADIUS = 28.0;
     private static final double MAIN_ISLAND_MAX_RADIUS = 42.0;
-
     private static final double SMALL_ISLAND_MIN_RADIUS = 5.0;
     private static final double SMALL_ISLAND_MAX_RADIUS = 15.0;
-
     private static final double GROUP_RADIUS = 125.0;
 
     public static final int BIOME_MESA = 0;
@@ -62,6 +59,14 @@ public final class SkyChunkGenerator extends ChunkGenerator {
     public static final int BIOME_SNOW = 5;
     public static final int BIOME_MUSHROOM = 6;
     public static final int BIOME_ROCKY = 7;
+    public static final int BIOME_PLAINS = 8;
+    public static final int BIOME_JUNGLE = 9;
+    public static final int BIOME_SWAMP = 10;
+    public static final int BIOME_SAVANNA = 11;
+    public static final int BIOME_CHERRY = 12;
+    public static final int BIOME_BIRCH = 13;
+
+    private static final int BIOME_COUNT = 14;
 
     private long worldSeed = 0L;
     private static volatile long CURRENT_WORLD_SEED = 0L;
@@ -83,12 +88,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
     ) {
         this.worldSeed = seed;
         CURRENT_WORLD_SEED = seed;
-
-        return super.createState(
-                structureSetLookup,
-                randomState,
-                seed
-        );
+        return super.createState(structureSetLookup, randomState, seed);
     }
 
     @Override
@@ -98,39 +98,28 @@ public final class SkyChunkGenerator extends ChunkGenerator {
             StructureManager structureManager,
             ChunkAccess chunk
     ) {
-        int chunkX = chunk.getPos().x();
-        int chunkZ = chunk.getPos().z();
-
-        int worldStartX = chunkX * 16;
-        int worldStartZ = chunkZ * 16;
-
+        int worldStartX = chunk.getPos().x() * 16;
+        int worldStartZ = chunk.getPos().z() * 16;
         List<Island> islands = findNearbyIslands(worldStartX + 8, worldStartZ + 8);
 
         for (int localX = 0; localX < 16; localX++) {
             int worldX = worldStartX + localX;
-
             for (int localZ = 0; localZ < 16; localZ++) {
                 int worldZ = worldStartZ + localZ;
+                Island island = findIslandAt(islands, worldX, worldZ);
+                if (island == null) continue;
 
-                Island bestIsland = findIslandAt(islands, worldX, worldZ);
-                if (bestIsland == null) {
-                    continue;
-                }
-
-                int surface = getSurfaceHeight(bestIsland, worldX, worldZ);
-                if (surface == Integer.MIN_VALUE) {
-                    continue;
-                }
-
-                int bottom = getBottomHeight(bestIsland, worldX, worldZ);
+                int surface = getSurfaceHeight(island, worldX, worldZ);
+                if (surface == Integer.MIN_VALUE) continue;
+                int bottom = getBottomHeight(island, worldX, worldZ);
 
                 for (int y = bottom; y <= surface; y++) {
-                    if (!isInsideIsland(bestIsland, worldX, y, worldZ, surface, bottom)) {
-                        continue;
-                    }
-
-                    BlockState state = getBlockState(bestIsland, worldX, y, worldZ, surface);
-                    chunk.setBlockState(new BlockPos(worldX, y, worldZ), state, 0);
+                    if (!isInsideIsland(island, worldX, y, worldZ, surface, bottom)) continue;
+                    chunk.setBlockState(
+                            new BlockPos(worldX, y, worldZ),
+                            getBlockState(island, worldX, y, worldZ, surface),
+                            0
+                    );
                 }
             }
         }
@@ -140,7 +129,6 @@ public final class SkyChunkGenerator extends ChunkGenerator {
 
     private List<Island> findNearbyIslands(int x, int z) {
         List<Island> result = new ArrayList<>();
-
         int cellX = Math.floorDiv(x, GROUP_CELL_SIZE);
         int cellZ = Math.floorDiv(z, GROUP_CELL_SIZE);
 
@@ -148,24 +136,17 @@ public final class SkyChunkGenerator extends ChunkGenerator {
             for (int offsetZ = -2; offsetZ <= 2; offsetZ++) {
                 int groupX = cellX + offsetX;
                 int groupZ = cellZ + offsetZ;
-
-                long cellSeed = mixSeed(worldSeed, groupX, groupZ);
-                RandomSource random = RandomSource.create(cellSeed);
+                RandomSource random = RandomSource.create(mixSeed(worldSeed, groupX, groupZ));
 
                 boolean spawnCell = groupX == 0 && groupZ == 0;
-                if (!spawnCell && random.nextDouble() > 0.38) {
-                    continue;
-                }
+                if (!spawnCell && random.nextDouble() > 0.38) continue;
 
-                double centerX = groupX * GROUP_CELL_SIZE
-                        + GROUP_CELL_SIZE / 2.0
+                double centerX = groupX * GROUP_CELL_SIZE + GROUP_CELL_SIZE / 2.0
+                        + random.nextDouble() * 620.0 - 310.0;
+                double centerZ = groupZ * GROUP_CELL_SIZE + GROUP_CELL_SIZE / 2.0
                         + random.nextDouble() * 620.0 - 310.0;
 
-                double centerZ = groupZ * GROUP_CELL_SIZE
-                        + GROUP_CELL_SIZE / 2.0
-                        + random.nextDouble() * 620.0 - 310.0;
-
-                int biomeType = random.nextInt(BIOME_ROCKY + 1);
+                int biomeType = random.nextInt(BIOME_COUNT);
 
                 double mainRadius;
                 if (spawnCell) {
@@ -174,17 +155,13 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                     mainRadius = 38.0 + random.nextDouble() * 12.0;
                 } else {
                     mainRadius = MAIN_ISLAND_MIN_RADIUS
-                            + random.nextDouble()
-                            * (MAIN_ISLAND_MAX_RADIUS - MAIN_ISLAND_MIN_RADIUS);
+                            + random.nextDouble() * (MAIN_ISLAND_MAX_RADIUS - MAIN_ISLAND_MIN_RADIUS);
                 }
 
                 int mainSurface = SURFACE_Y + random.nextInt(-8, 9);
                 int mainBottom = 30 + random.nextInt(18);
-
-                result.add(createIsland(
-                        random, centerX, centerZ, mainRadius,
-                        mainSurface, mainBottom, biomeType, true
-                ));
+                result.add(createIsland(random, centerX, centerZ, mainRadius,
+                        mainSurface, mainBottom, biomeType, true));
 
                 int islandCount = MIN_SMALL_ISLANDS
                         + random.nextInt(MAX_SMALL_ISLANDS - MIN_SMALL_ISLANDS + 1);
@@ -193,25 +170,18 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                     double angle = random.nextDouble() * Math.PI * 2.0;
                     double distance = 38.0
                             + Math.pow(random.nextDouble(), 0.75) * GROUP_RADIUS;
-
                     double islandX = centerX + Math.cos(angle) * distance;
                     double islandZ = centerZ + Math.sin(angle) * distance;
-
                     double radius = SMALL_ISLAND_MIN_RADIUS
-                            + random.nextDouble()
-                            * (SMALL_ISLAND_MAX_RADIUS - SMALL_ISLAND_MIN_RADIUS);
-
+                            + random.nextDouble() * (SMALL_ISLAND_MAX_RADIUS - SMALL_ISLAND_MIN_RADIUS);
                     int surface = SURFACE_Y + random.nextInt(-10, 11);
                     int bottom = surface - 25 - random.nextInt(22);
 
-                    result.add(createIsland(
-                            random, islandX, islandZ, radius,
-                            surface, bottom, biomeType, false
-                    ));
+                    result.add(createIsland(random, islandX, islandZ, radius,
+                            surface, bottom, biomeType, false));
                 }
             }
         }
-
         return result;
     }
 
@@ -239,55 +209,40 @@ public final class SkyChunkGenerator extends ChunkGenerator {
     private Island findIslandAt(List<Island> islands, int x, int z) {
         Island best = null;
         double bestDistance = Double.MAX_VALUE;
-
         for (Island island : islands) {
             double distance = horizontalDistance(island, x, z);
-            double edgeRadius = getEdgeRadius(island, x, z);
-
-            if (distance > edgeRadius) {
-                continue;
-            }
-
+            if (distance > getEdgeRadius(island, x, z)) continue;
             if (distance < bestDistance) {
                 bestDistance = distance;
                 best = island;
             }
         }
-
         return best;
     }
 
     private int getSurfaceHeight(Island island, int x, int z) {
         double distance = horizontalDistance(island, x, z);
         double edgeRadius = getEdgeRadius(island, x, z);
-
-        if (distance > edgeRadius) {
-            return Integer.MIN_VALUE;
-        }
+        if (distance > edgeRadius) return Integer.MIN_VALUE;
 
         double edge = distance / edgeRadius;
         double noise = terrainNoise(x, z, island.noiseOffset);
         double detail = terrainNoise(x * 2.2, z * 2.2, island.noiseOffset + 734.0);
-
         double terrain = noise * 4.0 + detail * 2.5;
 
         if (island.mainIsland && island.biomeType == BIOME_MOUNTAINS) {
             terrain += mountainNoise(x, z, island);
         }
-
-        if (island.biomeType == BIOME_TAIGA || island.biomeType == BIOME_FOREST) {
-            terrain += terrainNoise(
-                    x * 0.55, z * 0.55, island.noiseOffset + 3300.0
-            ) * 6.0;
+        if (island.biomeType == BIOME_TAIGA || island.biomeType == BIOME_FOREST
+                || island.biomeType == BIOME_JUNGLE || island.biomeType == BIOME_BIRCH
+                || island.biomeType == BIOME_CHERRY) {
+            terrain += terrainNoise(x * 0.55, z * 0.55,
+                    island.noiseOffset + 3300.0) * 6.0;
         }
-
-        if (island.biomeType == BIOME_DESERT) {
-            terrain *= 0.55;
-        }
+        if (island.biomeType == BIOME_DESERT) terrain *= 0.55;
 
         double broadShape = Math.pow(Math.max(0.0, 1.0 - edge), 2.0)
                 * island.radius * 0.06;
-
         return island.surfaceY + (int) Math.round(terrain + broadShape);
     }
 
@@ -295,50 +250,35 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         double distance = horizontalDistance(island, x, z);
         double edgeRadius = getEdgeRadius(island, x, z);
         double edge = Math.min(1.0, distance / edgeRadius);
-
-        double noise = terrainNoise(
-                x * 0.8, z * 0.8, island.noiseOffset + 8912.0
-        );
-
+        double noise = terrainNoise(x * 0.8, z * 0.8,
+                island.noiseOffset + 8912.0);
         double bottomRaise = Math.pow(edge, 2.0) * island.radius * 0.18;
-
         return island.bottomY + (int) Math.round(noise * 3.0 + bottomRaise);
     }
 
     private boolean isInsideIsland(
             Island island, int x, int y, int z, int surface, int bottom
     ) {
-        if (y > surface || y < bottom) {
-            return false;
-        }
-
+        if (y > surface || y < bottom) return false;
         double distance = horizontalDistance(island, x, z);
         double edgeRadius = getEdgeRadius(island, x, z);
         double vertical = (double) (y - bottom) / Math.max(1, surface - bottom);
-
         double shape = 0.05 + Math.pow(vertical, 0.48) * 0.95;
-        double rockNoise = terrainNoise(
-                x * 0.9, z * 0.9, island.noiseOffset + y * 0.17
-        );
-
+        double rockNoise = terrainNoise(x * 0.9, z * 0.9,
+                island.noiseOffset + y * 0.17);
         double allowedRadius = edgeRadius * shape
                 + rockNoise * island.roughness * 4.0 * (1.0 - vertical);
-
         return distance <= allowedRadius;
     }
 
     private double getEdgeRadius(Island island, int x, int z) {
         double angle = Math.atan2(z - island.z, x - island.x);
-
         double n1 = Math.sin(angle * 3.0 + island.noiseOffset);
         double n2 = Math.sin(angle * 5.0 + island.noiseOffset * 0.31);
         double n3 = Math.cos(angle * 7.0 - island.noiseOffset * 0.19);
         double directional = n1 * 0.13 + n2 * 0.09 + n3 * 0.06;
-
-        double worldNoise = terrainNoise(
-                x * 0.45, z * 0.45, island.noiseOffset + 1731.0
-        ) * 0.10;
-
+        double worldNoise = terrainNoise(x * 0.45, z * 0.45,
+                island.noiseOffset + 1731.0) * 0.10;
         return island.radius * Math.max(0.62, 1.0 + directional + worldNoise);
     }
 
@@ -347,16 +287,11 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         double dz = z - island.z;
         double distance = Math.sqrt(dx * dx + dz * dz);
         double normalized = distance / Math.max(1.0, island.radius);
-
-        if (normalized > 0.95) {
-            return 0.0;
-        }
-
+        if (normalized > 0.95) return 0.0;
         double n1 = terrainNoise(x * 0.24, z * 0.24, island.noiseOffset + 1200.0);
         double n2 = terrainNoise(x * 0.48, z * 0.48, island.noiseOffset + 3400.0);
         double ridge = Math.max(0.0, n1 * 0.7 + n2 * 0.45);
         double center = Math.pow(Math.max(0.0, 1.0 - normalized), 0.8);
-
         return ridge * center * 30.0;
     }
 
@@ -368,38 +303,35 @@ public final class SkyChunkGenerator extends ChunkGenerator {
             if (depth <= 4) return Blocks.TERRACOTTA.defaultBlockState();
             return getMesaTerracotta(y, island.noiseOffset);
         }
-
         if (island.biomeType == BIOME_MOUNTAINS) {
             if (depth == 0) return Blocks.GRASS_BLOCK.defaultBlockState();
             if (depth <= 3) return Blocks.DIRT.defaultBlockState();
-            double stoneNoise = terrainNoise(x, z, island.noiseOffset + 992.0);
-            if (stoneNoise > 0.42) return Blocks.GRAVEL.defaultBlockState();
-            return Blocks.STONE.defaultBlockState();
+            return terrainNoise(x, z, island.noiseOffset + 992.0) > 0.42
+                    ? Blocks.GRAVEL.defaultBlockState()
+                    : Blocks.STONE.defaultBlockState();
         }
-
         if (island.biomeType == BIOME_DESERT) {
             if (depth <= 4) return Blocks.SAND.defaultBlockState();
             if (depth <= 7) return Blocks.SANDSTONE.defaultBlockState();
             return Blocks.STONE.defaultBlockState();
         }
-
         if (island.biomeType == BIOME_SNOW) {
             if (depth == 0) return Blocks.SNOW_BLOCK.defaultBlockState();
             if (depth <= 3) return Blocks.DIRT.defaultBlockState();
             return Blocks.STONE.defaultBlockState();
         }
-
         if (island.biomeType == BIOME_MUSHROOM) {
             if (depth == 0) return Blocks.MYCELIUM.defaultBlockState();
             if (depth <= 4) return Blocks.DIRT.defaultBlockState();
             return Blocks.STONE.defaultBlockState();
         }
-
-        if (island.biomeType == BIOME_ROCKY) {
+        if (island.biomeType == BIOME_ROCKY || island.biomeType == BIOME_SAVANNA) {
             if (depth <= 2) return Blocks.COARSE_DIRT.defaultBlockState();
             return Blocks.STONE.defaultBlockState();
         }
-
+        if (island.biomeType == BIOME_SWAMP && depth == 0) {
+            return Blocks.GRASS_BLOCK.defaultBlockState();
+        }
         if (depth == 0) return Blocks.GRASS_BLOCK.defaultBlockState();
         if (depth <= 4) return Blocks.DIRT.defaultBlockState();
         return Blocks.STONE.defaultBlockState();
@@ -407,10 +339,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
 
     private BlockState getMesaTerracotta(int y, double offset) {
         int layer = Math.floorMod(
-                (int) Math.floor(y + offset * 0.013 + Math.sin(y * 0.31) * 2.0),
-                24
-        );
-
+                (int) Math.floor(y + offset * 0.013 + Math.sin(y * 0.31) * 2.0), 24);
         if (layer <= 1) return Blocks.TERRACOTTA.defaultBlockState();
         if (layer <= 3) return Blocks.RED_SAND.defaultBlockState();
         if (layer <= 5) return Blocks.TERRACOTTA.defaultBlockState();
@@ -428,10 +357,8 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         double dz = z - island.z;
         double cos = Math.cos(island.rotation);
         double sin = Math.sin(island.rotation);
-        double localX = dx * cos + dz * sin;
-        double localZ = -dx * sin + dz * cos;
-        localX /= island.stretchX;
-        localZ /= island.stretchZ;
+        double localX = (dx * cos + dz * sin) / island.stretchX;
+        double localZ = (-dx * sin + dz * cos) / island.stretchZ;
         return Math.sqrt(localX * localX + localZ * localZ);
     }
 
@@ -451,32 +378,27 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         return CURRENT_WORLD_SEED;
     }
 
+    /** Returns -1 when the coordinate is in the empty sky/void. */
     public static int getBiomeTypeForPosition(long seed, int x, int z) {
         int cellX = Math.floorDiv(x, GROUP_CELL_SIZE);
         int cellZ = Math.floorDiv(z, GROUP_CELL_SIZE);
-
-        int bestBiome = BIOME_FOREST;
+        int bestBiome = -1;
         double bestDistance = Double.MAX_VALUE;
 
         for (int offsetX = -2; offsetX <= 2; offsetX++) {
             for (int offsetZ = -2; offsetZ <= 2; offsetZ++) {
                 int groupX = cellX + offsetX;
                 int groupZ = cellZ + offsetZ;
-
                 RandomSource random = RandomSource.create(mixSeed(seed, groupX, groupZ));
+
                 boolean spawnCell = groupX == 0 && groupZ == 0;
-                if (!spawnCell && random.nextDouble() > 0.38) {
-                    continue;
-                }
+                if (!spawnCell && random.nextDouble() > 0.38) continue;
 
-                double centerX = groupX * GROUP_CELL_SIZE
-                        + GROUP_CELL_SIZE / 2.0
+                double centerX = groupX * GROUP_CELL_SIZE + GROUP_CELL_SIZE / 2.0
                         + random.nextDouble() * 620.0 - 310.0;
-                double centerZ = groupZ * GROUP_CELL_SIZE
-                        + GROUP_CELL_SIZE / 2.0
+                double centerZ = groupZ * GROUP_CELL_SIZE + GROUP_CELL_SIZE / 2.0
                         + random.nextDouble() * 620.0 - 310.0;
-
-                int biomeType = random.nextInt(BIOME_ROCKY + 1);
+                int biomeType = random.nextInt(BIOME_COUNT);
 
                 double mainRadius;
                 if (spawnCell) {
@@ -485,20 +407,9 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                     mainRadius = 38.0 + random.nextDouble() * 12.0;
                 } else {
                     mainRadius = MAIN_ISLAND_MIN_RADIUS
-                            + random.nextDouble()
-                            * (MAIN_ISLAND_MAX_RADIUS - MAIN_ISLAND_MIN_RADIUS);
+                            + random.nextDouble() * (MAIN_ISLAND_MAX_RADIUS - MAIN_ISLAND_MIN_RADIUS);
                 }
 
-                double mainDistance = Math.sqrt(
-                        Math.pow(x - centerX, 2) + Math.pow(z - centerZ, 2)
-                );
-
-                if (mainDistance <= mainRadius * 1.18 && mainDistance < bestDistance) {
-                    bestDistance = mainDistance;
-                    bestBiome = biomeType;
-                }
-
-                // Dieselben Zufallswerte wie bei der Hauptinsel verbrauchen.
                 random.nextInt(-8, 9);
                 random.nextInt(18);
                 random.nextDouble();
@@ -507,43 +418,43 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                 random.nextDouble();
                 random.nextDouble();
 
+                double dx = x - centerX;
+                double dz = z - centerZ;
+                double mainDistance = Math.sqrt(dx * dx + dz * dz);
+                if (mainDistance <= mainRadius * 1.70 && mainDistance < bestDistance) {
+                    bestDistance = mainDistance;
+                    bestBiome = biomeType;
+                }
+
                 int islandCount = MIN_SMALL_ISLANDS
                         + random.nextInt(MAX_SMALL_ISLANDS - MIN_SMALL_ISLANDS + 1);
-
                 for (int i = 0; i < islandCount; i++) {
                     double angle = random.nextDouble() * Math.PI * 2.0;
                     double distance = 38.0
                             + Math.pow(random.nextDouble(), 0.75) * GROUP_RADIUS;
-
                     double islandX = centerX + Math.cos(angle) * distance;
                     double islandZ = centerZ + Math.sin(angle) * distance;
-
                     double radius = SMALL_ISLAND_MIN_RADIUS
-                            + random.nextDouble()
-                            * (SMALL_ISLAND_MAX_RADIUS - SMALL_ISLAND_MIN_RADIUS);
+                            + random.nextDouble() * (SMALL_ISLAND_MAX_RADIUS - SMALL_ISLAND_MIN_RADIUS);
 
                     random.nextInt(-10, 11);
                     random.nextInt(22);
+                    random.nextDouble();
+                    random.nextDouble();
+                    random.nextDouble();
+                    random.nextDouble();
+                    random.nextDouble();
 
-                    double dx = x - islandX;
-                    double dz = z - islandZ;
+                    dx = x - islandX;
+                    dz = z - islandZ;
                     double islandDistance = Math.sqrt(dx * dx + dz * dz);
-
-                    if (islandDistance <= radius * 1.18 && islandDistance < bestDistance) {
+                    if (islandDistance <= radius * 1.70 && islandDistance < bestDistance) {
                         bestDistance = islandDistance;
                         bestBiome = biomeType;
                     }
-
-                    // createIsland() verbraucht fünf weitere Zufallswerte.
-                    random.nextDouble();
-                    random.nextDouble();
-                    random.nextDouble();
-                    random.nextDouble();
-                    random.nextDouble();
                 }
             }
         }
-
         return bestBiome;
     }
 
@@ -568,6 +479,17 @@ public final class SkyChunkGenerator extends ChunkGenerator {
             StructureTemplateManager structureTemplateManager,
             ResourceKey<Level> level
     ) {
+        // Use Minecraft's normal structure system. It validates the biome before
+        // placing structures, so villages, temples, outposts, ruins, etc. can use
+        // the actual terrain height supplied by this generator.
+        super.createStructures(
+                registryAccess,
+                structureState,
+                structureManager,
+                chunk,
+                structureTemplateManager,
+                level
+        );
     }
 
     @Override
@@ -614,13 +536,10 @@ public final class SkyChunkGenerator extends ChunkGenerator {
             int x, int z, Heightmap.Types type,
             LevelHeightAccessor heightAccessor, RandomState randomState
     ) {
-        List<Island> islands = findNearbyIslands(x, z);
-        Island island = findIslandAt(islands, x, z);
+        Island island = findIslandAt(findNearbyIslands(x, z), x, z);
         if (island == null) return WORLD_MIN_Y;
-
         int surface = getSurfaceHeight(island, x, z);
-        if (surface == Integer.MIN_VALUE) return WORLD_MIN_Y;
-        return surface + 1;
+        return surface == Integer.MIN_VALUE ? WORLD_MIN_Y : surface + 1;
     }
 
     @Override
@@ -628,21 +547,13 @@ public final class SkyChunkGenerator extends ChunkGenerator {
             int x, int z, LevelHeightAccessor heightAccessor, RandomState randomState
     ) {
         BlockState[] states = new BlockState[heightAccessor.getHeight()];
-        for (int i = 0; i < states.length; i++) {
-            states[i] = Blocks.AIR.defaultBlockState();
-        }
+        for (int i = 0; i < states.length; i++) states[i] = Blocks.AIR.defaultBlockState();
 
-        List<Island> islands = findNearbyIslands(x, z);
-        Island island = findIslandAt(islands, x, z);
-        if (island == null) {
-            return new NoiseColumn(heightAccessor.getMinY(), states);
-        }
+        Island island = findIslandAt(findNearbyIslands(x, z), x, z);
+        if (island == null) return new NoiseColumn(heightAccessor.getMinY(), states);
 
         int surface = getSurfaceHeight(island, x, z);
-        if (surface == Integer.MIN_VALUE) {
-            return new NoiseColumn(heightAccessor.getMinY(), states);
-        }
-
+        if (surface == Integer.MIN_VALUE) return new NoiseColumn(heightAccessor.getMinY(), states);
         int bottom = getBottomHeight(island, x, z);
         int minY = heightAccessor.getMinY();
 
@@ -652,19 +563,15 @@ public final class SkyChunkGenerator extends ChunkGenerator {
             if (!isInsideIsland(island, x, y, z, surface, bottom)) continue;
             states[index] = getBlockState(island, x, y, z, surface);
         }
-
         return new NoiseColumn(minY, states);
     }
 
     @Override
-    public void addDebugScreenInfo(
-            List<String> result, RandomState randomState, BlockPos feetPos
-    ) {
+    public void addDebugScreenInfo(List<String> result, RandomState randomState, BlockPos feetPos) {
         result.add("Crocodilandy Sky Generator");
-        result.add("Chaotic island groups");
-        result.add("1 larger spawn island + mostly small islands");
-        result.add("Mesa, Forest, Mountains, Desert, Plains, Snow, Mushroom, Rocky");
-        result.add("Structures: disabled");
+        result.add("Chaotic island groups + real void biome");
+        result.add("Expanded biome pool for vanilla features and structures");
+        result.add("Structures: vanilla structure generation enabled");
     }
 
     private record Island(
