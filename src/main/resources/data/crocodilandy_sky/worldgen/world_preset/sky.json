@@ -6,10 +6,16 @@
         "type": "crocodilandy_sky:sky",
         "biome_source": {
           "type": "crocodilandy_sky:sky_biomes",
-          "fallback": {
-            "type": "minecraft:multi_noise",
-            "preset": "minecraft:overworld"
-          }
+          "biomes": [
+            "minecraft:badlands",
+            "minecraft:taiga",
+            "minecraft:stony_peaks",
+            "minecraft:desert",
+            "minecraft:forest",
+            "minecraft:snowy_plains",
+            "minecraft:mushroom_fields",
+            "minecraft:windswept_hills"
+          ]
         }
       }
     },
