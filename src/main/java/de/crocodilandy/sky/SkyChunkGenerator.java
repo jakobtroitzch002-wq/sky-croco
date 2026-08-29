@@ -167,11 +167,15 @@ public final class SkyChunkGenerator extends ChunkGenerator {
 
                 int biomeType = random.nextInt(BIOME_ROCKY + 1);
 
-                double mainRadius = MAIN_ISLAND_MIN_RADIUS
-                        + random.nextDouble() * (MAIN_ISLAND_MAX_RADIUS - MAIN_ISLAND_MIN_RADIUS);
-
+                double mainRadius;
                 if (spawnCell) {
-                    mainRadius += 12.0;
+                    mainRadius = 48.0 + random.nextDouble() * 14.0;
+                } else if (random.nextDouble() < 0.12) {
+                    mainRadius = 38.0 + random.nextDouble() * 12.0;
+                } else {
+                    mainRadius = MAIN_ISLAND_MIN_RADIUS
+                            + random.nextDouble()
+                            * (MAIN_ISLAND_MAX_RADIUS - MAIN_ISLAND_MIN_RADIUS);
                 }
 
                 int mainSurface = SURFACE_Y + random.nextInt(-8, 9);
@@ -194,7 +198,8 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                     double islandZ = centerZ + Math.sin(angle) * distance;
 
                     double radius = SMALL_ISLAND_MIN_RADIUS
-                            + random.nextDouble() * (SMALL_ISLAND_MAX_RADIUS - SMALL_ISLAND_MIN_RADIUS);
+                            + random.nextDouble()
+                            * (SMALL_ISLAND_MAX_RADIUS - SMALL_ISLAND_MIN_RADIUS);
 
                     int surface = SURFACE_Y + random.nextInt(-10, 11);
                     int bottom = surface - 25 - random.nextInt(22);
@@ -467,20 +472,74 @@ public final class SkyChunkGenerator extends ChunkGenerator {
                 double centerX = groupX * GROUP_CELL_SIZE
                         + GROUP_CELL_SIZE / 2.0
                         + random.nextDouble() * 620.0 - 310.0;
-
                 double centerZ = groupZ * GROUP_CELL_SIZE
                         + GROUP_CELL_SIZE / 2.0
                         + random.nextDouble() * 620.0 - 310.0;
 
                 int biomeType = random.nextInt(BIOME_ROCKY + 1);
 
-                double dx = x - centerX;
-                double dz = z - centerZ;
-                double distance = dx * dx + dz * dz;
+                double mainRadius;
+                if (spawnCell) {
+                    mainRadius = 48.0 + random.nextDouble() * 14.0;
+                } else if (random.nextDouble() < 0.12) {
+                    mainRadius = 38.0 + random.nextDouble() * 12.0;
+                } else {
+                    mainRadius = MAIN_ISLAND_MIN_RADIUS
+                            + random.nextDouble()
+                            * (MAIN_ISLAND_MAX_RADIUS - MAIN_ISLAND_MIN_RADIUS);
+                }
 
-                if (distance < bestDistance) {
-                    bestDistance = distance;
+                double mainDistance = Math.sqrt(
+                        Math.pow(x - centerX, 2) + Math.pow(z - centerZ, 2)
+                );
+
+                if (mainDistance <= mainRadius * 1.18 && mainDistance < bestDistance) {
+                    bestDistance = mainDistance;
                     bestBiome = biomeType;
+                }
+
+                // Dieselben Zufallswerte wie bei der Hauptinsel verbrauchen.
+                random.nextInt(-8, 9);
+                random.nextInt(18);
+                random.nextDouble();
+                random.nextDouble();
+                random.nextDouble();
+                random.nextDouble();
+                random.nextDouble();
+
+                int islandCount = MIN_SMALL_ISLANDS
+                        + random.nextInt(MAX_SMALL_ISLANDS - MIN_SMALL_ISLANDS + 1);
+
+                for (int i = 0; i < islandCount; i++) {
+                    double angle = random.nextDouble() * Math.PI * 2.0;
+                    double distance = 38.0
+                            + Math.pow(random.nextDouble(), 0.75) * GROUP_RADIUS;
+
+                    double islandX = centerX + Math.cos(angle) * distance;
+                    double islandZ = centerZ + Math.sin(angle) * distance;
+
+                    double radius = SMALL_ISLAND_MIN_RADIUS
+                            + random.nextDouble()
+                            * (SMALL_ISLAND_MAX_RADIUS - SMALL_ISLAND_MIN_RADIUS);
+
+                    random.nextInt(-10, 11);
+                    random.nextInt(22);
+
+                    double dx = x - islandX;
+                    double dz = z - islandZ;
+                    double islandDistance = Math.sqrt(dx * dx + dz * dz);
+
+                    if (islandDistance <= radius * 1.18 && islandDistance < bestDistance) {
+                        bestDistance = islandDistance;
+                        bestBiome = biomeType;
+                    }
+
+                    // createIsland() verbraucht fünf weitere Zufallswerte.
+                    random.nextDouble();
+                    random.nextDouble();
+                    random.nextDouble();
+                    random.nextDouble();
+                    random.nextDouble();
                 }
             }
         }
