@@ -1,99 +1,86 @@
 package de.crocodilandy.sky;
 
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.ChunkAccess;
+
+import java.util.List;
+import java.util.ArrayList;
 
 /**
- * Adds survival resources to generated Sky islands after the terrain has been created.
- * The generator is intentionally deterministic per world/chunk so resources do not
- * move between server restarts.
+ * Deterministic resource pass used directly by SkyChunkGenerator.
+ * It does not listen to chunk-load events and therefore cannot modify
+ * already loaded chunks after generation.
  */
 public final class SkyResourceGenerator {
 
     private SkyResourceGenerator() {
     }
 
-    public static void register() {
-        ServerChunkEvents.CHUNK_LOAD.register(SkyResourceGenerator::generateResources);
-    }
+    public static void addResources(ChunkAccess chunk, List<BlockPos> solidPositions, long seed) {
+        if (solidPositions.isEmpty()) return;
 
-    private static void generateResources(ServerLevel level, LevelChunk chunk) {
-        RandomSource random = RandomSource.create(
-                mixSeed(level.getSeed(), chunk.getPos().x, chunk.getPos().z)
-        );
-
-        int minY = Math.max(level.getMinY(), 35);
-        int maxY = 108;
-
-        generateVeins(chunk, random, Blocks.COAL_ORE, 8, 5, minY, maxY);
-        generateVeins(chunk, random, Blocks.IRON_ORE, 7, 5, minY, maxY);
-        generateVeins(chunk, random, Blocks.COPPER_ORE, 7, 6, minY, maxY);
-        generateVeins(chunk, random, Blocks.GOLD_ORE, 4, 5, minY, maxY);
-        generateVeins(chunk, random, Blocks.REDSTONE_ORE, 4, 5, minY, 82);
-        generateVeins(chunk, random, Blocks.LAPIS_ORE, 3, 5, minY, 82);
-        generateVeins(chunk, random, Blocks.DIAMOND_ORE, 2, 4, minY, 72);
-        generateVeins(chunk, random, Blocks.EMERALD_ORE, 1, 3, 60, 105);
-    }
-
-    private static void generateVeins(
-            LevelChunk chunk,
-            RandomSource random,
-            net.minecraft.world.level.block.Block ore,
-            int attempts,
-            int veinSize,
-            int minY,
-            int maxY
-    ) {
-        if (maxY < minY) {
-            return;
-        }
-
-        for (int attempt = 0; attempt < attempts; attempt++) {
-            int x = chunk.getPos().getMinBlockX() + random.nextInt(16);
-            int z = chunk.getPos().getMinBlockZ() + random.nextInt(16);
-            int y = minY + random.nextInt(maxY - minY + 1);
-
-            placeVein(chunk, random, ore.defaultBlockState(), x, y, z, veinSize);
-        }
-    }
-
-    private static void placeVein(
-            LevelChunk chunk,
-            RandomSource random,
-            BlockState ore,
-            int x,
-            int y,
-            int z,
-            int size
-    ) {
-        for (int i = 0; i < size; i++) {
-            int px = x + random.nextInt(3) - 1;
-            int py = y + random.nextInt(3) - 1;
-            int pz = z + random.nextInt(3) - 1;
-
-            if (py < chunk.getMinBuildHeight() || py >= chunk.getMaxBuildHeight()) {
-                continue;
+        List<BlockPos> candidates = new ArrayList<>();
+        for (BlockPos pos : solidPositions) {
+            BlockState state = chunk.getBlockState(pos);
+            if (state.is(Blocks.STONE) || state.is(Blocks.DEEPSLATE)) {
+                candidates.add(pos.immutable());
             }
+        }
 
-            BlockPos pos = new BlockPos(px, py, pz);
+        if (candidates.isEmpty()) return;
+
+        int attempts = Math.min(14, Math.max(3, candidates.size() / 80));
+        for (int attempt = 0; attempt < attempts; attempt++) {
+            long veinSeed = mixSeed(seed, attempt, 0x51A7L);
+            BlockPos start = candidates.get((int) Math.floorMod(veinSeed, candidates.size()));
+            BlockState ore = chooseOre(veinSeed);
+            int size = veinSize(ore, veinSeed);
+            placeVein(chunk, start, ore, size, veinSeed);
+        }
+    }
+
+    private static int veinSize(BlockState ore, long seed) {
+        if (ore.is(Blocks.DIAMOND_ORE)) return 3;
+        if (ore.is(Blocks.EMERALD_ORE)) return 2;
+        if (ore.is(Blocks.LAPIS_ORE)) return 4;
+        if (ore.is(Blocks.REDSTONE_ORE)) return 5;
+        if (ore.is(Blocks.GOLD_ORE)) return 5;
+        if (ore.is(Blocks.IRON_ORE)) return 6;
+        if (ore.is(Blocks.COPPER_ORE)) return 7;
+        return 7 + (int) Math.floorMod(seed, 4);
+    }
+
+    private static void placeVein(ChunkAccess chunk, BlockPos start, BlockState ore, int size, long seed) {
+        for (int i = 0; i < size; i++) {
+            long value = mixSeed(seed, i, 0xBEEFL);
+            int dx = (int) Math.floorMod(value, 5) - 2;
+            int dy = (int) Math.floorMod(value >>> 8, 3) - 1;
+            int dz = (int) Math.floorMod(value >>> 16, 5) - 2;
+
+            BlockPos pos = start.offset(dx, dy, dz);
             BlockState current = chunk.getBlockState(pos);
-
             if (current.is(Blocks.STONE) || current.is(Blocks.DEEPSLATE)) {
                 chunk.setBlockState(pos, ore, 0);
             }
         }
     }
 
-    private static long mixSeed(long seed, int x, int z) {
-        long value = seed
-                ^ ((long) x * 0x9E3779B97F4A7C15L)
-                ^ ((long) z * 0xC2B2AE3D27D4EB4FL);
+    private static BlockState chooseOre(long seed) {
+        int roll = (int) Math.floorMod(seed, 100);
+        if (roll < 2) return Blocks.EMERALD_ORE.defaultBlockState();
+        if (roll < 6) return Blocks.DIAMOND_ORE.defaultBlockState();
+        if (roll < 12) return Blocks.LAPIS_ORE.defaultBlockState();
+        if (roll < 21) return Blocks.REDSTONE_ORE.defaultBlockState();
+        if (roll < 31) return Blocks.GOLD_ORE.defaultBlockState();
+        if (roll < 48) return Blocks.IRON_ORE.defaultBlockState();
+        if (roll < 70) return Blocks.COPPER_ORE.defaultBlockState();
+        return Blocks.COAL_ORE.defaultBlockState();
+    }
 
+    private static long mixSeed(long seed, long x, long z) {
+        long value = seed ^ (x * 0x9E3779B97F4A7C15L) ^ (z * 0xC2B2AE3D27D4EB4FL);
         value ^= value >>> 30;
         value *= 0xBF58476D1CE4E5B9L;
         value ^= value >>> 27;
