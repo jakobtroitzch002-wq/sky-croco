@@ -6,6 +6,7 @@ public final class CrocodilandySkyMod implements ModInitializer {
     @Override
     public void onInitialize() {
         SkyWorldgen.register();
+        SkyStructurePlacer.register();
         System.out.println("Crocodilandy Sky loaded");
     }
 }
