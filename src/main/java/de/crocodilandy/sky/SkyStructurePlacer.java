@@ -4,6 +4,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -27,7 +28,7 @@ public final class SkyStructurePlacer {
         if (!level.dimension().equals(ServerLevel.OVERWORLD)) return;
 
         ChunkPos cp = chunk.getPos();
-        long seed = mix(level.getSeed(), cp.x, cp.z);
+        long seed = mix(level.getSeed(), cp.x(), cp.z());
 
         // Sparse: most chunks contain no structure.
         if (Math.floorMod(seed, 100) >= 7) return;
@@ -77,7 +78,7 @@ public final class SkyStructurePlacer {
     }
 
     private static void buildBadlandsRuins(ServerLevel l, BlockPos o) {
-        BlockState terracotta = Blocks.ORANGE_TERRACOTTA.defaultBlockState();
+        BlockState terracotta = Blocks.DYED_TERRACOTTA.pick(DyeColor.ORANGE).defaultBlockState();
         for (int h = 0; h < 6; h++) {
             for (int x = 1; x < 8; x++) {
                 l.setBlock(o.offset(x, h, 1), terracotta, 3);
