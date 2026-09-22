@@ -41,7 +41,11 @@ public final class SkyStructurePlacer {
         int y = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, centerX, centerZ);
         if (y <= 0 || y >= level.getMaxY() - 12) return;
 
-        BlockState below = level.getBlockState(new BlockPos(centerX, y - 1, centerZ));
+        // CHUNK_LOAD runs while the chunk is being processed by the server
+        // chunk pipeline. Calling level.getBlockState() here can synchronously
+        // request the same chunk from ServerChunkCache and deadlock the server.
+        // Read directly from the already-loaded LevelChunk instead.
+        BlockState below = chunk.getBlockState(new BlockPos(centerX, y - 1, centerZ));
         if (below.isAir() || below.is(Blocks.WATER) || below.is(Blocks.LAVA)) return;
 
         BlockPos origin = new BlockPos(centerX - 4, y, centerZ - 4);
