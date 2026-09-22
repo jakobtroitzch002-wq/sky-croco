@@ -3,6 +3,8 @@ name: Build Crocodilandy Sky
 on:
   workflow_dispatch:
   push:
+    branches: ["main", "refactor/sky-chunk-generator"]
+  pull_request:
     branches: ["main"]
 
 jobs:
