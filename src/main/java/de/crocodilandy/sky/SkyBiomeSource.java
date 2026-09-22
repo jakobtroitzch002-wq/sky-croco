@@ -35,7 +35,11 @@ public final class SkyBiomeSource extends BiomeSource {
     }
 
     @Override
-    public Holder<Biome> getNoiseBiome(
+    public BiomeResolver createResolver(Climate.Sampler sampler) {
+        return (quartX, quartY, quartZ) -> getNoiseBiome(quartX, quartY, quartZ, sampler);
+    }
+
+    private Holder<Biome> getNoiseBiome(
             int quartX,
             int quartY,
             int quartZ,
