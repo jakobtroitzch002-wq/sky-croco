@@ -5,13 +5,16 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.RegistryAccess;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.biome.BiomeManager;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.core.Holder;
+import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
+import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -21,6 +24,7 @@ import net.minecraft.world.level.chunk.ChunkGeneratorStructureState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.blending.Blender;
+import java.util.Set;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 
 import java.util.List;
@@ -72,11 +76,14 @@ public final class SkyChunkGenerator extends ChunkGenerator {
     }
 
     @Override
-    public CompletableFuture<ChunkAccess> fillFromNoise(
+    public CompletableFuture<ChunkAccess> buildTerrain(
+            ChunkAccess chunk,
             Blender blender,
             RandomState randomState,
             StructureManager structureManager,
-            ChunkAccess chunk) {
+            BiomeManager biomeManager,
+            WorldGenRegion carverBiomeRegion,
+            Set<Holder<Biome>> possibleBiomes) {
         int startX = chunk.getPos().x() * 16;
         int startZ = chunk.getPos().z() * 16;
         List<SkyIsland> islands = SkyIslandGenerator.findNearby(worldSeed, startX + 8, startZ + 8);
@@ -129,24 +136,6 @@ public final class SkyChunkGenerator extends ChunkGenerator {
             StructureTemplateManager structureTemplateManager,
             ResourceKey<Level> level) {
         // Custom structures are placed after island terrain generation.
-    }
-
-    @Override
-    public void applyCarvers(
-            WorldGenRegion region,
-            long seed,
-            RandomState randomState,
-            BiomeManager biomeManager,
-            StructureManager structureManager,
-            ChunkAccess chunk) {
-    }
-
-    @Override
-    public void buildSurface(
-            WorldGenRegion level,
-            StructureManager structureManager,
-            RandomState randomState,
-            ChunkAccess protoChunk) {
     }
 
     @Override
@@ -217,7 +206,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
     }
 
     @Override
-    public void addDebugScreenInfo(List<String> result, RandomState randomState, BlockPos feetPos) {
+    public void addDebugScreenInfo(List<String> result, RandomState randomState, BlockPos feetPos, SamplerContext samplerContext) {
         result.add("Crocodilandy Sky Generator");
         result.add("Island terrain delegated to SkyIslandGenerator/SkyTerrain");
         result.add("Custom structures placed after terrain generation");
