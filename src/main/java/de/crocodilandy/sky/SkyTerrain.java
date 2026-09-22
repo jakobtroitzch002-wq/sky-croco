@@ -1,5 +1,6 @@
 package de.crocodilandy.sky;
 
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -15,7 +16,7 @@ final class SkyTerrain {
                 + SkyIslandGenerator.noise(x * 2.3, z * 2.3, island.noiseOffset() + 734.0) * 1.8;
 
         if (island.biomeType() == SkyChunkGenerator.BIOME_MOUNTAINS && island.mainIsland()) {
-            terrain += mountainTerrain(island, x, z);
+            terrain += mountainTerrain(x, z, island);
         }
         if (island.biomeType() == SkyChunkGenerator.BIOME_TAIGA
                 || island.biomeType() == SkyChunkGenerator.BIOME_FOREST
@@ -92,29 +93,29 @@ final class SkyTerrain {
         int layer = Math.floorMod((int) Math.floor(y + (offset + layerOffset) * 0.013), 64);
         return switch (layer) {
             case 0, 1, 2, 32, 33, 34 -> Blocks.TERRACOTTA.defaultBlockState();
-            case 3, 4, 35, 36 -> Blocks.ORANGE_TERRACOTTA.defaultBlockState();
-            case 5, 6 -> Blocks.YELLOW_TERRACOTTA.defaultBlockState();
-            case 7, 8 -> Blocks.WHITE_TERRACOTTA.defaultBlockState();
-            case 9, 10 -> Blocks.LIGHT_GRAY_TERRACOTTA.defaultBlockState();
-            case 11, 12 -> Blocks.BROWN_TERRACOTTA.defaultBlockState();
-            case 13, 14, 37, 38, 47, 48 -> Blocks.RED_TERRACOTTA.defaultBlockState();
-            case 15 -> Blocks.MAGENTA_TERRACOTTA.defaultBlockState();
-            case 16, 17 -> Blocks.PINK_TERRACOTTA.defaultBlockState();
-            case 18, 19 -> Blocks.LIGHT_BLUE_TERRACOTTA.defaultBlockState();
-            case 20, 21 -> Blocks.CYAN_TERRACOTTA.defaultBlockState();
-            case 22, 23 -> Blocks.GREEN_TERRACOTTA.defaultBlockState();
-            case 24, 25 -> Blocks.LIME_TERRACOTTA.defaultBlockState();
-            case 26, 27 -> Blocks.BLUE_TERRACOTTA.defaultBlockState();
-            case 28, 29 -> Blocks.PURPLE_TERRACOTTA.defaultBlockState();
-            case 30, 31 -> Blocks.BLACK_TERRACOTTA.defaultBlockState();
-            case 39, 40, 49, 50 -> Blocks.ORANGE_TERRACOTTA.defaultBlockState();
-            case 41, 42, 51, 52 -> Blocks.YELLOW_TERRACOTTA.defaultBlockState();
-            case 43, 44 -> Blocks.WHITE_TERRACOTTA.defaultBlockState();
-            case 45, 46 -> Blocks.BROWN_TERRACOTTA.defaultBlockState();
-            case 53, 54 -> Blocks.LIGHT_BLUE_TERRACOTTA.defaultBlockState();
-            case 55, 56 -> Blocks.PURPLE_TERRACOTTA.defaultBlockState();
-            case 57, 58 -> Blocks.GREEN_TERRACOTTA.defaultBlockState();
-            case 59, 60 -> Blocks.BROWN_TERRACOTTA.defaultBlockState();
+            case 3, 4, 35, 36 -> Blocks.DYED_TERRACOTTA.pick(DyeColor.ORANGE).defaultBlockState();
+            case 5, 6 -> Blocks.DYED_TERRACOTTA.pick(DyeColor.YELLOW).defaultBlockState();
+            case 7, 8 -> Blocks.DYED_TERRACOTTA.pick(DyeColor.WHITE).defaultBlockState();
+            case 9, 10 -> Blocks.DYED_TERRACOTTA.pick(DyeColor.LIGHT_GRAY).defaultBlockState();
+            case 11, 12 -> Blocks.DYED_TERRACOTTA.pick(DyeColor.BROWN).defaultBlockState();
+            case 13, 14, 37, 38, 47, 48 -> Blocks.DYED_TERRACOTTA.pick(DyeColor.RED).defaultBlockState();
+            case 15 -> Blocks.DYED_TERRACOTTA.pick(DyeColor.MAGENTA).defaultBlockState();
+            case 16, 17 -> Blocks.DYED_TERRACOTTA.pick(DyeColor.PINK).defaultBlockState();
+            case 18, 19 -> Blocks.DYED_TERRACOTTA.pick(DyeColor.LIGHT_BLUE).defaultBlockState();
+            case 20, 21 -> Blocks.DYED_TERRACOTTA.pick(DyeColor.CYAN).defaultBlockState();
+            case 22, 23 -> Blocks.DYED_TERRACOTTA.pick(DyeColor.GREEN).defaultBlockState();
+            case 24, 25 -> Blocks.DYED_TERRACOTTA.pick(DyeColor.LIME).defaultBlockState();
+            case 26, 27 -> Blocks.DYED_TERRACOTTA.pick(DyeColor.BLUE).defaultBlockState();
+            case 28, 29 -> Blocks.DYED_TERRACOTTA.pick(DyeColor.PURPLE).defaultBlockState();
+            case 30, 31 -> Blocks.DYED_TERRACOTTA.pick(DyeColor.BLACK).defaultBlockState();
+            case 39, 40, 49, 50 -> Blocks.DYED_TERRACOTTA.pick(DyeColor.ORANGE).defaultBlockState();
+            case 41, 42, 51, 52 -> Blocks.DYED_TERRACOTTA.pick(DyeColor.YELLOW).defaultBlockState();
+            case 43, 44 -> Blocks.DYED_TERRACOTTA.pick(DyeColor.WHITE).defaultBlockState();
+            case 45, 46 -> Blocks.DYED_TERRACOTTA.pick(DyeColor.BROWN).defaultBlockState();
+            case 53, 54 -> Blocks.DYED_TERRACOTTA.pick(DyeColor.LIGHT_BLUE).defaultBlockState();
+            case 55, 56 -> Blocks.DYED_TERRACOTTA.pick(DyeColor.PURPLE).defaultBlockState();
+            case 57, 58 -> Blocks.DYED_TERRACOTTA.pick(DyeColor.GREEN).defaultBlockState();
+            case 59, 60 -> Blocks.DYED_TERRACOTTA.pick(DyeColor.BROWN).defaultBlockState();
             default -> Blocks.TERRACOTTA.defaultBlockState();
         };
     }
