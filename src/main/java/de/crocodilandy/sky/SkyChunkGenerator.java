@@ -30,7 +30,6 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemp
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureSet;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
-import net.minecraft.world.level.levelgen.structure.pieces.StructurePiece;
 
 import java.util.List;
 import java.util.Comparator;
@@ -148,26 +147,6 @@ public final class SkyChunkGenerator extends ChunkGenerator {
         super.createStructures(registryAccess, structureState, structureManager, chunk, structureTemplateManager, level);
     }
 
-
-    static boolean structurePieceFitsIsland(long seed, StructurePiece piece) {
-        var box = piece.getBoundingBox();
-        int minX = box.minX();
-        int maxX = box.maxX();
-        int minZ = box.minZ();
-        int maxZ = box.maxZ();
-        int centerX = (minX + maxX) >> 1;
-        int centerZ = (minZ + maxZ) >> 1;
-        int radius = Math.max(maxX - minX, maxZ - minZ) / 2 + STRUCTURE_FOOTPRINT_PADDING;
-        return findStructureIsland(seed, centerX, centerZ, radius) != null;
-    }
-
-    static boolean structureStartFitsIsland(long seed, StructureStart start) {
-        if (!start.isValid()) return false;
-        for (StructurePiece piece : start.getPieces()) {
-            if (!structurePieceFitsIsland(seed, piece)) return false;
-        }
-        return true;
-    }
 
     static SkyIsland findStructureIsland(long seed, int centerX, int centerZ, int footprintRadius) {
         List<SkyIsland> candidates = SkyIslandGenerator.findNearby(seed, centerX, centerZ);
