@@ -136,7 +136,9 @@ public final class SkyChunkGenerator extends ChunkGenerator {
             ChunkAccess chunk,
             StructureTemplateManager structureTemplateManager,
             ResourceKey<Level> level) {
-        // Custom structures are placed after island terrain generation.
+        // Keep vanilla structure generation enabled. The custom generator only
+        // replaces terrain; vanilla structure sets should still run normally.
+        super.createStructures(registryAccess, structureState, structureManager, chunk, structureTemplateManager, level);
     }
 
     @Override
