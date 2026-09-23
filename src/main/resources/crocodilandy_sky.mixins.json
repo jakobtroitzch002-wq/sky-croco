@@ -1,0 +1,11 @@
+{
+  "required": true,
+  "package": "de.crocodilandy.sky.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "SkyStructurePlacementMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
