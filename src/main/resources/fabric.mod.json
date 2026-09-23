@@ -1,1 +1,17 @@
-{"schemaVersion":1,"id":"crocodilandy_sky","version":"${version}","name":"Crocodilandy Sky","description":"Void sky island generator core.","authors":["Crocodilandy"],"environment":"*","entrypoints":{"main":["de.crocodilandy.sky.CrocodilandySkyMod"]},"depends":{"fabricloader":">=0.19.5","minecraft":"26.3","java":">=25","fabric-api":"*"}}
+{
+  "schemaVersion":1,
+  "id":"crocodilandy_sky",
+  "version":"\u0024{version}",
+  "name":"Crocodilandy Sky",
+  "description":"Void sky island generator core.",
+  "authors":["Crocodilandy"],
+  "environment":"*",
+  "entrypoints":{"main":["de.crocodilandy.sky.CrocodilandySkyMod"]},
+  "mixins":["crocodilandy_sky.mixins.json"],
+  "depends":{
+    "fabricloader":">=0.19.5",
+    "minecraft":"26.3",
+    "java":">=25",
+    "fabric-api":"*"
+  }
+}
