@@ -29,6 +29,7 @@ import java.util.Set;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 
 import java.util.List;
+import java.util.Comparator;
 import java.util.concurrent.CompletableFuture;
 
 public final class SkyChunkGenerator extends ChunkGenerator {
@@ -53,6 +54,7 @@ public final class SkyChunkGenerator extends ChunkGenerator {
     public static final int BIOME_BIRCH = 13;
 
     private static final int WORLD_MIN_Y = -64;
+    private static final int STRUCTURE_FOOTPRINT_PADDING = 6;
     private static volatile long CURRENT_WORLD_SEED;
 
     private long worldSeed;
@@ -136,9 +138,63 @@ public final class SkyChunkGenerator extends ChunkGenerator {
             ChunkAccess chunk,
             StructureTemplateManager structureTemplateManager,
             ResourceKey<Level> level) {
-        // Keep vanilla structure generation enabled. The custom generator only
-        // replaces terrain; vanilla structure sets should still run normally.
+        // Let vanilla calculate the normal structure starts first. The helper
+        // methods below provide deterministic, island-safe anchor selection for
+        // structures that are placed by the mod layer.
         super.createStructures(registryAccess, structureState, structureManager, chunk, structureTemplateManager, level);
+    }
+
+
+    static SkyIsland findStructureIsland(long seed, int centerX, int centerZ, int footprintRadius) {
+        List<SkyIsland> candidates = SkyIslandGenerator.findNearby(seed, centerX, centerZ);
+        SkyIsland best = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (SkyIsland island : candidates) {
+            double distance = Math.hypot(centerX - island.x(), centerZ - island.z());
+            if (distance < bestDistance && footprintFitsIsland(island, centerX, centerZ, footprintRadius)) {
+                best = island;
+                bestDistance = distance;
+            }
+        }
+        return best;
+    }
+
+    static boolean footprintFitsIsland(SkyIsland island, int centerX, int centerZ, int radius) {
+        int r = radius + STRUCTURE_FOOTPRINT_PADDING;
+        int[][] samples = {
+                {-r, -r}, {0, -r}, {r, -r},
+                {-r, 0}, {r, 0},
+                {-r, r}, {0, r}, {r, r},
+                {-r / 2, -r}, {r / 2, -r},
+                {-r, -r / 2}, {-r, r / 2},
+                {r, -r / 2}, {r, r / 2},
+                {-r / 2, r}, {r / 2, r}
+        };
+        for (int[] sample : samples) {
+            int x = centerX + sample[0];
+            int z = centerZ + sample[1];
+            if (SkyIslandGenerator.findAt(List.of(island), x, z) == null) return false;
+        }
+        return true;
+    }
+
+    static BlockPos findStructurePlacement(long seed, int preferredX, int preferredZ, int footprintRadius) {
+        SkyIsland direct = findStructureIsland(seed, preferredX, preferredZ, footprintRadius);
+        if (direct != null) {
+            int y = SkyTerrain.surfaceHeight(direct, preferredX, preferredZ);
+            if (y != Integer.MIN_VALUE) return new BlockPos(preferredX, y + 1, preferredZ);
+        }
+
+        List<SkyIsland> candidates = SkyIslandGenerator.findNearby(seed, preferredX, preferredZ);
+        candidates.sort(Comparator.comparingDouble(i -> Math.hypot(preferredX - i.x(), preferredZ - i.z())));
+        for (SkyIsland island : candidates) {
+            int x = (int) Math.round(island.x());
+            int z = (int) Math.round(island.z());
+            if (!footprintFitsIsland(island, x, z, footprintRadius)) continue;
+            int y = SkyTerrain.surfaceHeight(island, x, z);
+            if (y != Integer.MIN_VALUE) return new BlockPos(x, y + 1, z);
+        }
+        return null;
     }
 
     @Override
