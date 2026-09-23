@@ -4,10 +4,12 @@ import de.crocodilandy.sky.SkyChunkGenerator;
 import de.crocodilandy.sky.SkyStructureGenerator;
 import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeSource;
+import net.minecraft.world.level.biome.Climate;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
@@ -24,9 +26,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class SkyStructureMixin {
     @Inject(method = "generate", at = @At("RETURN"), cancellable = true)
     private void crocodilandySky$requireIslandFootprint(
+            Holder<Structure> structureHolder,
+            ResourceKey<Structure> structureKey,
             RegistryAccess registryAccess,
             ChunkGenerator chunkGenerator,
             BiomeSource biomeSource,
+            Climate.Sampler climateSampler,
             RandomState randomState,
             StructureTemplateManager structureTemplateManager,
             long seed,
