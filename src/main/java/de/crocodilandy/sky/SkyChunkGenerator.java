@@ -15,7 +15,6 @@ import net.minecraft.world.level.biome.BiomeManager;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.core.Holder;
 import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
-import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -27,9 +26,6 @@ import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.blending.Blender;
 import java.util.Set;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
-import net.minecraft.world.level.levelgen.structure.Structure;
-import net.minecraft.world.level.levelgen.structure.StructureSet;
-import net.minecraft.world.level.levelgen.structure.StructureStart;
 
 import java.util.List;
 import java.util.Comparator;
@@ -271,6 +267,6 @@ public final class SkyChunkGenerator extends ChunkGenerator {
     public void addDebugScreenInfo(List<String> result, RandomState randomState, BlockPos feetPos, SamplerContext samplerContext) {
         result.add("Crocodilandy Sky Generator");
         result.add("Island terrain delegated to SkyIslandGenerator/SkyTerrain");
-        result.add("Custom structures placed after terrain generation");
+        result.add("Structures are limited to valid SkyIsland footprints");
     }
 }
