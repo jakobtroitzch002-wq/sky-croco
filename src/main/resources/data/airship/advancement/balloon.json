@@ -1,0 +1,35 @@
+{
+  "parent": "airship:core",
+  "display": {
+    "icon": {
+      "id": "airship:airship_balloon"
+    },
+    "title": {
+      "translate": "advancement.airship.balloon.title"
+    },
+    "description": {
+      "translate": "advancement.airship.balloon.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "has_item": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "airship:airship_balloon"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "has_item"
+    ]
+  ]
+}

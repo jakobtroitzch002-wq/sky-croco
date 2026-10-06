@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    "airship:airship_core",
+    "airship:airship_engine"
+  ]
+}

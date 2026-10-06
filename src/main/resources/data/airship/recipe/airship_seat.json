@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "W": "#minecraft:wool",
+    "P": "#minecraft:planks",
+    "L": "minecraft:leather"
+  },
+  "pattern": [
+    " W ",
+    "PPP",
+    " L "
+  ],
+  "result": {
+    "id": "airship:airship_seat",
+    "count": 1
+  }
+}

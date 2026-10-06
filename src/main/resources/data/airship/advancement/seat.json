@@ -1,0 +1,35 @@
+{
+  "parent": "airship:core",
+  "display": {
+    "icon": {
+      "id": "airship:airship_seat"
+    },
+    "title": {
+      "translate": "advancement.airship.seat.title"
+    },
+    "description": {
+      "translate": "advancement.airship.seat.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "has_item": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "airship:airship_seat"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "has_item"
+    ]
+  ]
+}

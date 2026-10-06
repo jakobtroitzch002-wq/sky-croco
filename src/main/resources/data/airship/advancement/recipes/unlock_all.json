@@ -1,0 +1,22 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "always": {
+      "trigger": "minecraft:tick"
+    }
+  },
+  "requirements": [
+    [
+      "always"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "airship:airship_balloon",
+      "airship:airship_build",
+      "airship:airship_core",
+      "airship:airship_engine",
+      "airship:airship_seat"
+    ]
+  }
+}

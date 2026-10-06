@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "airship:block/airship_seat" },
+    "facing=east":  { "model": "airship:block/airship_seat", "y": 90 },
+    "facing=south": { "model": "airship:block/airship_seat", "y": 180 },
+    "facing=west":  { "model": "airship:block/airship_seat", "y": 270 }
+  }
+}

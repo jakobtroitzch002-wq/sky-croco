@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "W": "#minecraft:wool",
+    "S": "minecraft:string"
+  },
+  "pattern": [
+    "W",
+    "W",
+    "S"
+  ],
+  "result": {
+    "id": "airship:airship_balloon",
+    "count": 2
+  }
+}
